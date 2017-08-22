@@ -114,7 +114,7 @@ _ESTIMATE_MODIFIER = 1
 
 # URL = 'http://www.ntnu.no/ab/digilab/Web/laser3.json'  # Server containing material settings
 URL = 'http://www.ntnu.no/ab/digilab/Web/laser.json'
-SCRIPT_VERSION = 2.0
+SCRIPT_VERSION = 1.95
 
 WORLD_X_VECTOR = rs.VectorCreate(([1.0, 0.0, 0.0]), ([0.0, 0.0, 0.0]))
 

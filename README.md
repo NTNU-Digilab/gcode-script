@@ -1,0 +1,2 @@
+# gcode-script
+A python script converting rhino curves to g-code instructions for CO2 laser-cutting

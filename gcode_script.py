@@ -96,6 +96,7 @@ import math
 import os
 import time
 import urllib
+import re
 
 import json as j
 import rhinoscriptsyntax as rs
@@ -107,6 +108,13 @@ from rhinoscript.curve import CurveDomain
 #===============================================================================
 _CUTTING_LAYER_DEFAULT_NAME = 'cut'  # Lower case name to be used for cut_layer
 _ENGRAVING_LAYER_DEFAULT_NAME = 'engrave'  # Lower case name to be used for engrave_layer
+_LAYER_NAME_REPLACEMENTS = {' ': '_',
+                            '.': '_',
+                            '-': '_',
+                            '\\': '_',
+                            '|': '_',
+                            '$': '_'} # Dictonary to replace unrecognizable characters in layer names
+
 _CURVE_TO_LINE_SEGMENT_LENGTH = 0.7
 _G00_SPEED = 45 # The speed of slew movements
 _ESTIMATE_MODIFIER = 1 # Optional factor to multiply speed estimate with to compensate for acceleration
@@ -309,12 +317,12 @@ def get_layer_name(layer_name):
                 layer_found = True
                 print('Found %s layer to be used: ' % layer_name_present_participle + str(layer))
                 return layer
-            # Rhino is unable to have list items containing whitespace as a selectable
-            # UI element. To solve this, replacing whitespace with underscore.
-            # TODO: Apply fix for special characters in string here
-            layer = layer.replace(' ', '_')
-            layer = layer.replace('.', '_')
-            fixed_string_layers.append(layer)
+            # Rhino is unable to have list items containing whitespaces or special characters as a selectable
+            # This code replaces characters in the central dictionary
+            replace = dict((re.escape(k), v) for k, v in _LAYER_NAME_REPLACEMENTS.iteritems())
+            pattern = re.compile("|".join(replace.keys()))
+            fixed_layer = pattern.sub(lambda m: replace[re.escape(m.group(0))], layer)
+            fixed_string_layers.append(fixed_layer)
 
         if not layer_found:
             fixed_string_layers.append('None')  # Adding none as an option in the listing of layers
@@ -782,7 +790,6 @@ def arc_calc(obj):
     y_offset = Decimal(sin) * Decimal(offset_length)
 
     return gcode_direction, x_offset, y_offset
-
 
 
 def curve_calc_to_lines(obj):

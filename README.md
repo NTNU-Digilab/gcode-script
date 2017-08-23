@@ -8,11 +8,11 @@ Ellipses and NURBS/interpolated curves are reduced to lines for the time being d
 
 This new script is based on script V1.0 written by Asbjorn Steinskog (IDI) and Pasi Aalto (AB)
 
-@date:           27.06.2017
-@author:         Andreas Weibye
-@organisation:   Norwegian University of Science and Technology
-@copyright:      MIT License
-@version:        1.95
+    @date:           27.06.2017
+    @author:         Andreas Weibye
+    @organisation:   Norwegian University of Science and Technology
+    @copyright:      MIT License
+    @version:        1.95
 
 
 

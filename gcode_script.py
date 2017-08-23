@@ -1314,12 +1314,14 @@ def run_script():
 
     start_time = time.clock()
 
-    rs.StatusBarProgressMeterShow('Running Gcode Script',
-                                  0,
-                                  100,
-                                  embed_label=True,
-                                  show_percent=True
-                                  )
+    #===========================================================================
+    # rs.StatusBarProgressMeterShow('Running Gcode Script',
+    #                               0,
+    #                               100,
+    #                               embed_label=True,
+    #                               show_percent=True
+    #                               )
+    #===========================================================================
 
     print('\n----\n  G-code generator for MultiCAM CO2 laser cutter. \n'
           + '  Version: ' + str(SCRIPT_VERSION)
@@ -1337,13 +1339,15 @@ def run_script():
     server_data = get_from_url(URL)
 
     if server_data is False:
-        return
+        return 1 # Returned with an error but we have notified about it
 
     if server_data['Offline'] == 1:
         rs.MessageBox(server_data['OfflineMessage'], 0, 'Error: Server is offline')
-        return
+        return 1
 
-    rs.StatusBarProgressMeterUpdate(1, absolute=True)
+    #===========================================================================
+    # rs.StatusBarProgressMeterUpdate(1, absolute=True)
+    #===========================================================================
 
     # Setting the outer bounds of the working area
     global BOUNDS_MAX_X
@@ -1360,9 +1364,11 @@ def run_script():
             + '\n')
 
         rs.MessageBox(plugin_message, 0, 'Error: Script out of date')
-        return
+        return 1
 
-    rs.StatusBarProgressMeterUpdate(2, absolute=True)
+    #===========================================================================
+    # rs.StatusBarProgressMeterUpdate(2, absolute=True)
+    #===========================================================================
 
     # Checking the document unit system and terminates if the used does not approve auto-scaling
     if not approve_unit_system():
@@ -1370,15 +1376,19 @@ def run_script():
             'Sorry, the laser-cutter only works with millimetres. '
             + 'Try typing \'units\' in Rhino to access settings', 
             0, 'Error: Incompatible unit system')
-        return
+        return 1
 
-    rs.StatusBarProgressMeterUpdate(3, absolute=True)
+    #===========================================================================
+    # rs.StatusBarProgressMeterUpdate(3, absolute=True)
+    #===========================================================================
 
     # Getting cutting and engraving layer
     layer_name_engrave = get_layer_name(_ENGRAVING_LAYER_DEFAULT_NAME)
     layer_name_cut = get_layer_name(_CUTTING_LAYER_DEFAULT_NAME)
 
-    rs.StatusBarProgressMeterUpdate(10, absolute=True)
+    #===========================================================================
+    # rs.StatusBarProgressMeterUpdate(10, absolute=True)
+    #===========================================================================
 
     # Terminate if no layer has been selected
     if layer_name_cut == None and layer_name_engrave == None :
@@ -1386,44 +1396,36 @@ def run_script():
             'Sorry, you need to select at least a cut or an engrave layer, '
             'alternatively you can make layers titled cut and engrave, which '
             'will be processed automatically', 0, 'Error: No layers processed')
-        return
+        return 1
 
     # Getting objects from layers
     objects_engrave = get_objects_from_layer(layer_name_engrave)
     if objects_engrave == False:
-        # Duplicate objects found, exit script
-        print('Program exit: Duplicates or non-planar curves found')
-        return
+        # Duplicate objects found, user exited script
+        return 2
 
     objects_cut = get_objects_from_layer(layer_name_cut)
     if objects_cut == False:
-        # Duplicate objects found, exit script
-        print('Program exit: Duplicates  or non-planar curves found')
-        return
+        # Duplicate objects found, user exited script
+        return 2
 
     # Terminate if no objects has been found
     if objects_cut == None and objects_engrave == None:
         rs.MessageBox(
             'Sorry, no objects found on the layers you have selected',
             0, 'Error: No objects found')
-        return
-
-    rs.StatusBarProgressMeterUpdate(20, absolute=True)
+        return 1
 
     # Getting material data
     material_name = list_materials(server_data)
-
-    rs.StatusBarProgressMeterUpdate(23, absolute=True)
 
     if material_name is None:
         rs.MessageBox(
             'Sorry, you have to select a material',
             0, 'Error: No material selected')
-        return
+        return 1
 
     material_data = server_data['Materials'][material_name]
-
-    rs.StatusBarProgressMeterUpdate(25, absolute=True)
 
     #===========================================================================
     # Interpreting curve objects
@@ -1459,8 +1461,7 @@ def run_script():
         message = rs.MessageBox(complete_message, 4 | 48 | 0, 'ERROR: Unprocessed objects')
         if message == 6:
             # Yes was clicked
-            print('Program exit: Unprocessed objects')
-            return
+            return 2
         elif message == 7:
             # No was clicked
             # Program continues
@@ -1490,6 +1491,7 @@ def run_script():
     # Get Gcode and statistics
     #===========================================================================
     algo_start_time = time.clock()
+
     if objects_engrave != None:
         # Getting gcode_engrave and statistics
         gcode_engrave, curves_engraved, polycurves_engraved, polylines_engraved, lines_engraved, length_engraved_active, length_engraved_passive = gcode_from_objects(objects_engrave)
@@ -1609,12 +1611,12 @@ def run_script():
     if save_path is not None:
         save_file = save_path + '_' + str(material_data['MaterialName']) + '.nc'
     else:
-        return
+        return 3
 
     final_file = open(save_file, 'w')
 
     if final_file is None:
-        return
+        return 3
     else:
         final_file.write(gcode_final)
         final_file.close()
@@ -1625,9 +1627,11 @@ def run_script():
             print('File saved successfully')
         else:
             rs.MessageBox('Unable to save file', 0, 'Error')
+            return 3
 
-    rs.StatusBarProgressMeterHide()
     rs.MessageBox(summary, 0, title='File summary')
+    
+    return 0
 
 
 
@@ -1635,5 +1639,13 @@ def run_script():
 # Main programloop
 #===============================================================================
 if (__name__ == '__main__'):
-    run_script()
+    exit = run_script()
+    if exit == 0:
+        print('Program exit: Successful run')
+    elif exit == 1:
+        print('Program exited with error, but has been notified what caused it')
+    elif exit == 2:
+        print('Program exit: User chose to exit script')
+    elif exit == 3:
+        print('Program exit: Error, no notification given')
 

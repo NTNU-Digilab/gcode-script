@@ -1,4 +1,4 @@
-# gcode-script Readme
+# Readme: gcode-script
 
 A python script (IronPython 2.7.5) converting curve geometry from Rhinocerous to G-code instructions for CO2 laser-cutting. This script aims to utilise the laser-cutter's full range of motion using G00, G01, G02 and G03 moves.
 

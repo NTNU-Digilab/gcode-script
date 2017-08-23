@@ -100,6 +100,7 @@ import re
 
 import json as j
 import rhinoscriptsyntax as rs
+from rhinoscript.curve import CurvePlane
 
 #===============================================================================
 # GLOBAL VARIABLES
@@ -123,10 +124,12 @@ URL = 'http://www.ntnu.no/ab/digilab/Web/laser.json' # Server containing regular
 SCRIPT_VERSION = 1.95
 
 WORLD_X_VECTOR = rs.VectorCreate(([1.0, 0.0, 0.0]), ([0.0, 0.0, 0.0]))
+WORLD_XY_PLANE = rs.WorldXYPlane()
 
 BOUNDS_MAX_X = 0
 BOUNDS_MAX_Y = 0
 
+# Precision and rounding globals
 CONTEXT = Context(prec=28, rounding=ROUND_HALF_DOWN)
 ROUNDING = Decimal('1.000')
 
@@ -269,6 +272,7 @@ def approve_unit_system():
             return False
     return True
 
+
 def get_layer_name(layer_name):
     '''
     Will look for any layer in document named layer_name.
@@ -363,32 +367,35 @@ def get_objects_from_layer(layer_name):
     non_planar = []
     curve_object_list = []
 
+
     if layer_name is None:
-        return None
+        return None, None
     print('Getting objects from layer: ' + str(layer_name))
-    # TODO: Add check if geometry is in same plane
-    # TODO: Check bounding box against outer dimension of work area,
-    #       prompt user to either fix or continue
-        # TODO: If user backs out, select and highlight the affected geometry
-        # and then proceed to create the bounding box in a new layer
-    
+
+    # Checking for any preselected objects
+    selected_objects = rs.SelectedObjects(include_lights=True, include_grips=True)
+    if selected_objects is not None and selected_objects.__len__() > 0:
+        # User has selected something in the document, need to deselect before processing
+        rs.UnselectAllObjects()
+
     # Checking for duplicate objects in document
     rs.Command('SelDup', echo=False)
-    duplicates = rs.SelectedObjects(include_lights=False, include_grips=False)
-    if duplicates:
+    duplicates_list = rs.SelectedObjects(include_lights=False, include_grips=False)
+    rs.UnselectAllObjects()
+    if duplicates_list:
         response = rs.MessageBox(
-            'Duplicate objects found in document.\n'
-            + 'Exit script and remove duplicates?',
+            '%s duplicate objects found in document.\n'  % str(duplicates_list.__len__())
+            + 'Exit script and remove duplicates manually?',
             4 | 48,
             'Duplicates found')
         if response == 6:
-            return False
-    
+            return False, duplicates_list
+
     # Fetching objects
     objects = rs.ObjectsByLayer(layer_name, False)
     if not objects:
         rs.MessageBox('Layer has no objects: ' + str(layer_name), 0, 'Error')
-        return None
+        return None, None
 
     # Extract only curve objects from objects in layer
     for obj in objects:
@@ -396,20 +403,52 @@ def get_objects_from_layer(layer_name):
             if rs.IsCurvePlanar(obj) == False:
                 non_planar.append(obj)
             else:
-                curve_object_list.append(obj)
+                curve_plane = rs.CurvePlane(obj)
 
-    if len(non_planar) > 0:
+                # Checking if these values are within tolerance
+                z_vector_x = check_within_tolerance(curve_plane[3][0], WORLD_XY_PLANE[3][0])
+                z_vector_y = check_within_tolerance(curve_plane[3][1], WORLD_XY_PLANE[3][1])
+                z_vector_z = check_within_tolerance(curve_plane[3][2], WORLD_XY_PLANE[3][2])
+                z_vector_z_reversed = check_within_tolerance(curve_plane[3][2], WORLD_XY_PLANE[3][2] * -1)
+                origin_position_z = check_within_tolerance(curve_plane[0][2], WORLD_XY_PLANE[0][2])
+
+                # If plane Z axis and plane origin Z value is the same: 
+                if not (z_vector_x and z_vector_y and (z_vector_z or z_vector_z_reversed) and origin_position_z):
+                    # Curve plane is not equal world XY plane
+                    non_planar.append(obj)
+                    pass
+                else:
+                    # Curve is planar and in world XY plane
+                    curve_object_list.append(obj)
+
+    if non_planar.__len__() > 0:
         response = rs.MessageBox(
-            '%s curves in document is not planar.\n' % str(non_planar)
-            + 'Exit script and fix curves?',
+            '%s non-planar curves found in document.\n' % str(non_planar.__len__())
+            + 'Exit script and fix non-planar curves manually?',
             4 | 48,
             'Curves not planar')
         if response == 6:
-            rs.UnselectAllObjects()
-            rs.SelectObjects(non_planar)
-            return False
+            return False, non_planar
 
-    return curve_object_list
+    return curve_object_list, None
+
+
+def check_within_tolerance(value_a, value_b, tolerance=0.001):
+    '''
+    Checking if value_a is within tolerance of value_b.
+    Parameters: 
+        value_a: First value to check with.
+        value_b: Second value to check against.
+        tolerance: Tolerance to check within.
+    Returns:
+        result(bool): Returns True or False depending on result.
+    '''
+
+    if ((value_a <= value_b + tolerance) and
+        (value_a >= value_b - tolerance)):
+        return True
+    else:
+        return False
 
 
 def interpret_curves(object_guid):
@@ -430,6 +469,8 @@ def interpret_curves(object_guid):
     objects_out_of_bounds = 0
     objects_skipped = 0
     curve_object_list = []
+    
+    objects_skipped_list = []
 
     if object_guid:
 
@@ -448,6 +489,7 @@ def interpret_curves(object_guid):
             else:
                 # Object is out of bounds.
                 objects_out_of_bounds += 1
+                objects_skipped_list.append(obj)
                 valid = False
 
             if valid:
@@ -455,6 +497,7 @@ def interpret_curves(object_guid):
                 if not rs.IsCurvePlanar(obj):
                     valid = False
                     objects_skipped += 1
+                    objects_skipped_list.append(obj)
 
             if valid:
                 # Check for open or closed curves
@@ -490,6 +533,7 @@ def interpret_curves(object_guid):
                     center_point = None
                 else:
                     curve_type = 'curve'
+                    # These are NURBS / interpolated curves
                     center_point = None
 
                 # Calculate closed curve area
@@ -509,7 +553,7 @@ def interpret_curves(object_guid):
                 curve_object_list.append(c_object)
 
         # Returning the list of interpreted objects, unsorted
-        return curve_object_list, objects_out_of_bounds, objects_skipped
+        return curve_object_list, objects_out_of_bounds, objects_skipped, objects_skipped_list
     else:
         return None
 
@@ -1144,6 +1188,8 @@ def run_script():
     engrave_out_of_bounds = 0
     engrave_skipped_objects = 0
 
+    cut_objects_skipped_list = []
+    engrave_objects_skipped_list = []
     # Getting data from server
     server_data = get_from_url(URL)
 
@@ -1208,15 +1254,15 @@ def run_script():
         return 1
 
     # Getting objects from layers
-    objects_engrave = get_objects_from_layer(layer_name_engrave)
+    objects_engrave, duplicates = get_objects_from_layer(layer_name_engrave)
     if objects_engrave == False:
         # Duplicate objects found, user exited script
-        return 2
+        return 2, duplicates
 
-    objects_cut = get_objects_from_layer(layer_name_cut)
+    objects_cut, duplicates = get_objects_from_layer(layer_name_cut)
     if objects_cut == False:
         # Duplicate objects found, user exited script
-        return 2
+        return 2, duplicates
 
     # Terminate if no objects has been found
     if objects_cut == None and objects_engrave == None:
@@ -1242,13 +1288,13 @@ def run_script():
 
     if objects_engrave != None:
         #If there are any objects from engrave layer -> sort them
-        objects_engrave, engrave_out_of_bounds, engrave_skipped_objects = interpret_curves(objects_engrave)
+        objects_engrave, engrave_out_of_bounds, engrave_skipped_objects, engrave_objects_skipped_list = interpret_curves(objects_engrave)
     else:
         objects_engrave = None
 
     if objects_cut != None:
         # If there are any objects from cutting layer -> parse and interpret them
-        objects_cut, cut_out_of_bounds, cut_skipped_objects = interpret_curves(objects_cut)
+        objects_cut, cut_out_of_bounds, cut_skipped_objects, cut_objects_skipped_list = interpret_curves(objects_cut)
     else:
         objects_cut = None
 
@@ -1270,7 +1316,10 @@ def run_script():
         message = rs.MessageBox(complete_message, 4 | 48 | 0, 'ERROR: Unprocessed objects')
         if message == 6:
             # Yes was clicked
-            return 2
+            print('Yes was clicked')
+            total_skipped_objects_list = engrave_objects_skipped_list + cut_objects_skipped_list
+            print(str(len(total_skipped_objects_list)))
+            return 2, total_skipped_objects_list
         elif message == 7:
             # No was clicked
             # Program continues
@@ -1420,12 +1469,13 @@ def run_script():
     if save_path is not None:
         save_file = save_path + '_' + str(material_data['MaterialName']) + '.nc'
     else:
-        return 3
+        print('User exited save file dialogue')
+        return 3, None
 
     final_file = open(save_file, 'w')
 
     if final_file is None:
-        return 3
+        return 4, None
     else:
         final_file.write(gcode_final)
         final_file.close()
@@ -1436,24 +1486,32 @@ def run_script():
             print('File saved successfully')
         else:
             rs.MessageBox('Unable to save file', 0, 'Error')
-            return 3
+            return 3, None
 
     rs.MessageBox(summary, 0, title='File summary')
 
-    return 0
+    return 0, None
 
 #===============================================================================
 # Main programloop
 #===============================================================================
 if (__name__ == '__main__'):
-    exit_code = run_script()
+
+    exit_objects_to_be_selected = []
+    exit_code, exit_objects_to_be_selected = run_script()
     if exit_code == 0:
         print('Program exit: Successful run')
     elif exit_code == 1:
         print('Program exited with error, but has been notified what caused it')
     elif exit_code == 2:
         print('Program exit: User chose to exit script')
+            
+        if exit_objects_to_be_selected is not None:
+            if ((exit_objects_to_be_selected.__len__() != 0)):
+                rs.SelectObjects(exit_objects_to_be_selected)
     elif exit_code == 3:
+        print('Program exit: User exited dialogue screen')
+    elif exit_code == 4:
         print('Program exit: Error, no notification given')
 
     #Perform cleanup

@@ -1,4 +1,5 @@
 # coding: utf8
+
 '''
 
     @date:           27.06.2017
@@ -99,8 +100,6 @@ import re
 
 import json as j
 import rhinoscriptsyntax as rs
-from rhinoscript.curve import CurveDomain
-
 
 #===============================================================================
 # GLOBAL VARIABLES
@@ -1122,7 +1121,7 @@ def run_script():
     TODO: Fix all documentation segments
     '''
 
-    start_time = time.clock()
+    # start_time = time.clock()
 
     #===========================================================================
     # rs.StatusBarProgressMeterShow('Running Gcode Script',
@@ -1443,20 +1442,18 @@ def run_script():
 
     return 0
 
-
-
 #===============================================================================
 # Main programloop
 #===============================================================================
 if (__name__ == '__main__'):
-    exit = run_script()
-    if exit == 0:
+    exit_code = run_script()
+    if exit_code == 0:
         print('Program exit: Successful run')
-    elif exit == 1:
+    elif exit_code == 1:
         print('Program exited with error, but has been notified what caused it')
-    elif exit == 2:
+    elif exit_code == 2:
         print('Program exit: User chose to exit script')
-    elif exit == 3:
+    elif exit_code == 3:
         print('Program exit: Error, no notification given')
 
     #Perform cleanup

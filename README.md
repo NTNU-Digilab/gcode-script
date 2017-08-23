@@ -8,21 +8,25 @@ Ellipses and NURBS/interpolated curves are reduced to lines for the time being d
 
 This new script is based on script V1.0 written by Asbjorn Steinskog (IDI) and Pasi Aalto (AB)
 
-   @date:           27.06.2017
-   @author:         Andreas Weibye
-   @organisation:   Norwegian University of Science and Technology
-   @copyright:      MIT License
-   @version:        1.95
+@date:           27.06.2017
+@author:         Andreas Weibye
+@organisation:   Norwegian University of Science and Technology
+@copyright:      MIT License
+@version:        1.95
 
 
 
 ## MultiCam GCodes
-   G00:     High speed move (slew)          //Used between cuts
-   G01:     Linear move (machine)           //Used when cutting
-   G02:     Clockwise rotation              //Used when cutting
-   G03:     Counterclockwise rotation       //Used when cutting
-   M12:     Start laser                     //At the beginning of the cut
-   M22:     Stop laser                      //At the end of the cut
+These are the important G-codes that are being used in the current script. 
+
+G00:     High speed move (slew)          //Used between cuts
+G01:     Linear move (machine)           //Used when cutting linear
+G02:     Clockwise rotation              //Used when cutting arcs
+G03:     Counterclockwise rotation       //Used when cutting arcs
+M12:     Start laser                     //Used at the beginning of the cut
+M22:     Stop laser                      //Used at the end of the cut
+
+Additionally there are some G-codes added to the start and end of the file providing the machine with startup and shutdown commands. These can be found from the script's material server. 
 
 ### Important note
 This script is designed to work with a chinese-brand C02 laser-cutter/engraver (unable to find exact brand and make) that uses a MultiCam firmware.

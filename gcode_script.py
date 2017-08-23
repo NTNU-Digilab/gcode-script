@@ -1194,11 +1194,11 @@ def run_script():
     server_data = get_from_url(URL)
 
     if server_data is False:
-        return 1 # Returned with an error but we have notified about it
+        return 1, None# Returned with an error but we have notified about it
 
     if server_data['Offline'] == 1:
         rs.MessageBox(server_data['OfflineMessage'], 0, 'Error: Server is offline')
-        return 1
+        return 1, None
 
     #===========================================================================
     # rs.StatusBarProgressMeterUpdate(1, absolute=True)
@@ -1219,7 +1219,7 @@ def run_script():
             + '\n')
 
         rs.MessageBox(plugin_message, 0, 'Error: Script out of date')
-        return 1
+        return 1, None
 
     #===========================================================================
     # rs.StatusBarProgressMeterUpdate(2, absolute=True)
@@ -1231,7 +1231,7 @@ def run_script():
             'Sorry, the laser-cutter only works with millimetres. '
             + 'Try typing \'units\' in Rhino to access settings', 
             0, 'Error: Incompatible unit system')
-        return 1
+        return 1, None
 
     #===========================================================================
     # rs.StatusBarProgressMeterUpdate(3, absolute=True)
@@ -1251,7 +1251,7 @@ def run_script():
             'Sorry, you need to select at least a cut or an engrave layer, '
             'alternatively you can make layers titled cut and engrave, which '
             'will be processed automatically', 0, 'Error: No layers processed')
-        return 1
+        return 1, None
 
     # Getting objects from layers
     objects_engrave, duplicates = get_objects_from_layer(layer_name_engrave)
@@ -1269,7 +1269,7 @@ def run_script():
         rs.MessageBox(
             'Sorry, no objects found on the layers you have selected',
             0, 'Error: No objects found')
-        return 1
+        return 1, None
 
     # Getting material data
     material_name = list_materials(server_data)
@@ -1278,7 +1278,7 @@ def run_script():
         rs.MessageBox(
             'Sorry, you have to select a material',
             0, 'Error: No material selected')
-        return 1
+        return 1, None
 
     material_data = server_data['Materials'][material_name]
 
@@ -1502,7 +1502,7 @@ if (__name__ == '__main__'):
     if exit_code == 0:
         print('Program exit: Successful run')
     elif exit_code == 1:
-        print('Program exited with error, but has been notified what caused it')
+        print('Program exit: Error, user notified what caused it')
     elif exit_code == 2:
         print('Program exit: User chose to exit script')
             

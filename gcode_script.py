@@ -2,11 +2,11 @@
 
 '''
 
-    @date:           27.06.2017 009
+    @date:           27.06.2017
     @author:         Andreas Weibye
     @organisation:   Norwegian University of Science and Technology
-    @copyright:      Creative Commons - CC BY-SA 4.0
-    @version:        2.0
+    @copyright:      MIT License
+    @version:        1.95
 
     @summary: Converts Rhino curves into gcode for the CO2 plasma laser.
               This script aims to utilise the laser-cutter's full range of
@@ -30,7 +30,7 @@
     Based on script V1.0 written by Asbjorn Steinskog (IDI) and Pasi Aalto (AB)
 
 
-    @Changelog: 2.0
+    @Changelog: 1.95
 
     Layers:
     * Script will now recognise layers with whitespace.
@@ -108,12 +108,12 @@ from rhinoscript.curve import CurveDomain
 _CUTTING_LAYER_DEFAULT_NAME = 'cut'  # Lower case name to be used for cut_layer
 _ENGRAVING_LAYER_DEFAULT_NAME = 'engrave'  # Lower case name to be used for engrave_layer
 _CURVE_TO_LINE_SEGMENT_LENGTH = 0.7
-_G00_SPEED = 45
-_ESTIMATE_MODIFIER = 1
+_G00_SPEED = 45 # The speed of slew movements
+_ESTIMATE_MODIFIER = 1 # Optional factor to multiply speed estimate with to compensate for acceleration
 
 
-# URL = 'http://www.ntnu.no/ab/digilab/Web/laser3.json'  # Server containing material settings
-URL = 'http://www.ntnu.no/ab/digilab/Web/laser.json'
+# URL = 'http://www.ntnu.no/ab/digilab/Web/laser3.json' # Server containing acryllic material settings
+URL = 'http://www.ntnu.no/ab/digilab/Web/laser.json' # Server containing regular material settings
 SCRIPT_VERSION = 1.95
 
 WORLD_X_VECTOR = rs.VectorCreate(([1.0, 0.0, 0.0]), ([0.0, 0.0, 0.0]))
@@ -283,8 +283,10 @@ def get_layer_name(layer_name):
 
     layer_found = False
     document_layers = rs.LayerNames()
-    fixed_doc_layers = []
+    fixed_string_layers = []
 
+    # If there is only one layer present in the document, check for
+    # any default name then continue if found.
     if len(document_layers) == 1:
         if layer_name == _CUTTING_LAYER_DEFAULT_NAME:
             if document_layers[0].lower() == _CUTTING_LAYER_DEFAULT_NAME.lower():
@@ -307,19 +309,20 @@ def get_layer_name(layer_name):
                 return layer
             # Rhino is unable to have list items containing whitespace as a selectable
             # UI element. To solve this, replacing whitespace with underscore.
+            # TODO: Apply fix for special characters in string here
             layer = layer.replace(' ', '_')
-            fixed_doc_layers.append(layer)
+            fixed_string_layers.append(layer)
 
         if not layer_found:
-            fixed_doc_layers.append('None')  # Adding none as an option in the listing of layers
-            lookup_layer = rs.GetString('Choose layer to be used for %s' % layer_name_present_participle, None, fixed_doc_layers)
+            fixed_string_layers.append('None')  # Adding none as an option in the listing of layers
+            lookup_layer = rs.GetString('Choose layer to be used for %s' % layer_name_present_participle, None, fixed_string_layers)
             if lookup_layer == 'None':
                 print('No %s layer chosen' % layer_name_present_participle)
                 return None
             elif lookup_layer not in document_layers:
                 # If the layer name was altered by replacing whitespace with underscore,
                 # revert back to the old name to be used for further processing.
-                index = fixed_doc_layers.index(lookup_layer)
+                index = fixed_string_layers.index(lookup_layer)
                 try:
                     lookup_layer = document_layers[index]
                 except:

@@ -1,7 +1,6 @@
 # coding: utf8
 
 '''
-
     @date:           27.06.2017
     @author:         Andreas Weibye
     @organisation:   Norwegian University of Science and Technology

@@ -6,7 +6,7 @@
     @author:         Andreas Weibye
     @organisation:   Norwegian University of Science and Technology
     @copyright:      MIT License
-    @version:        1.95
+    @version:        1.9-beta.2
 
     @summary: Converts Rhino curves into gcode for the CO2 plasma laser.
               This script aims to utilise the laser-cutter's full range of
@@ -64,7 +64,7 @@ _ESTIMATE_MODIFIER = 1 # Optional factor to multiply speed estimate with to comp
 
 # URL = 'http://www.ntnu.no/ab/digilab/Web/laser3.json' # Server containing acryllic material settings
 URL = 'http://www.ntnu.no/ab/digilab/Web/laser.json' # Server containing regular material settings
-SCRIPT_VERSION = 1.95
+SCRIPT_VERSION = 1.91
 
 WORLD_X_VECTOR = rs.VectorCreate(([1.0, 0.0, 0.0]), ([0.0, 0.0, 0.0]))
 WORLD_XY_PLANE = rs.WorldXYPlane()

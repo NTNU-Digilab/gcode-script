@@ -288,12 +288,14 @@ def get_layer_name(layer_name):
     # If there is only one layer present in the document, check for
     # any default name then continue if found.
     if len(document_layers) == 1:
+        # Looking for cutting layer
         if layer_name == _CUTTING_LAYER_DEFAULT_NAME:
             if document_layers[0].lower() == _CUTTING_LAYER_DEFAULT_NAME.lower():
                 return document_layers[0]
             elif document_layers[0].lower() == _ENGRAVING_LAYER_DEFAULT_NAME.lower():
                 return None
 
+        # Looking for engraving layer
         if layer_name == _ENGRAVING_LAYER_DEFAULT_NAME:
             if len(document_layers) == 1:
                 if document_layers[0].lower() == _CUTTING_LAYER_DEFAULT_NAME.lower():
@@ -311,12 +313,18 @@ def get_layer_name(layer_name):
             # UI element. To solve this, replacing whitespace with underscore.
             # TODO: Apply fix for special characters in string here
             layer = layer.replace(' ', '_')
+            layer = layer.replace('.', '_')
             fixed_string_layers.append(layer)
 
         if not layer_found:
             fixed_string_layers.append('None')  # Adding none as an option in the listing of layers
             lookup_layer = rs.GetString('Choose layer to be used for %s' % layer_name_present_participle, None, fixed_string_layers)
-            if lookup_layer == 'None':
+            if lookup_layer == None:
+                # User pressed escape out of the dialogue
+                print('No %s layer chosen' % layer_name_present_participle)
+                return None
+            elif lookup_layer == 'None':
+                # User chose None as option
                 print('No %s layer chosen' % layer_name_present_participle)
                 return None
             elif lookup_layer not in document_layers:
@@ -1426,7 +1434,7 @@ def run_script():
             return 3
 
     rs.MessageBox(summary, 0, title='File summary')
-    
+
     return 0
 
 
@@ -1444,4 +1452,7 @@ if (__name__ == '__main__'):
         print('Program exit: User chose to exit script')
     elif exit == 3:
         print('Program exit: Error, no notification given')
+
+    #Perform cleanup
+    rs.StatusBarProgressMeterHide()
 

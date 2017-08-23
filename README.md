@@ -8,6 +8,7 @@ Ellipses and NURBS/interpolated curves are reduced to lines for the time being d
 
 This new script is based on script V1.0 written by Asbjorn Steinskog (IDI) and Pasi Aalto (AB)
 
+```python
     @date:           27.06.2017
     @author:         Andreas Weibye
     @organisation:   Norwegian University of Science and Technology

@@ -29,62 +29,6 @@
 
     Based on script V1.0 written by Asbjorn Steinskog (IDI) and Pasi Aalto (AB)
 
-
-    @Changelog: 1.95
-
-    Layers:
-    * Script will now recognise layers with whitespace.
-    * Script will not ask for cut or engrave layer if there is only one layer
-      present in document named the default name of either cut or engrave. It
-      will recognise the one, and not ask for the other.
-    * Re-wrote function for getting layer name. No longer need for two separate
-      get_layer_name functions 
-
-    Curve processing:
-    * Script will now check for duplicates and exit if any is found.
-    * Arcs and circles are now calculated to use circular motion cut.
-    * Rounding errors in circle-calulation will be made up for using a line,
-      keeping sure the entire circle is cut.
-    * Ellipses and NURBS are still calculated using multiple lines.
-    * Script pauses if objects are skipped or out-of-bounds and prompts
-      user to exit or continue.
-    * Polylines and polycurves will no longer start and stop between each
-      sub-curve, resulting in better cuts.
-
-    Sorting:
-    * Reworked sorting to use a depth-first algorithm sorting by both parent-child
-      relationships and sorts siblings by XY coordinates, drastically decreasing
-      unneeded criss-crossing between cuts while still preventing items to fall
-      down from the laser-bed before being completed.
-    * When selecting an acrylic-profile, user will have option to use an alternative
-      sort, hopefully mitigating overheating and warping of the material.
-
-    Gcode output:
-    * Final gcode will now only contain engrave or cutting code if there has
-      been any objects in the respective layers.
-    * Added comments explaining code-sections in the final gcode file.
-    * All gcode coordinates now use Decimal module for rounding instead of
-      math.round for increased precision and control.
-
-    Statistics:
-    * Reworked time estimate to also account for laser movement between cuts,
-      allowing the estimated time to be near exact the duration of the file.
-
-    File system:
-    * Script now checks if final file was successfully created before exiting.
-
-    @Known_bugs_and_things_to_fix:
-    * Script throws an error if layers have special characters in their name (ÆØÅ).
-      This needs to be fixed.
-    * Curves and ellipses need to be divided depending on their curvature. Too high curvature
-      makes way too many divisions, leading to bad cuts.
-    * Need to add check if curves are flat and within bounds when fetching from layers.
-    * Need to clean up uneccesary code from script
-    * Add a box telling people that their laser-file is wasteful
-        (calculate 'spread' of items, see how much wasted space in between)
-    * Curves will be flipped to always have start of curve closer to origin
-      than end of curve. This will reduce unecessary criss-crossing and
-      improve cut-times.
 '''
 
 #===============================================================================
@@ -100,7 +44,6 @@ import re
 
 import json as j
 import rhinoscriptsyntax as rs
-from rhinoscript.curve import CurvePlane
 
 #===============================================================================
 # GLOBAL VARIABLES
@@ -1497,8 +1440,14 @@ def run_script():
 #===============================================================================
 if (__name__ == '__main__'):
 
+    # Exit variables
+    exit_code = None
     exit_objects_to_be_selected = []
+    
+    # Run main program
     exit_code, exit_objects_to_be_selected = run_script()
+    
+    # Handle exit codes
     if exit_code == 0:
         print('Program exit: Successful run')
     elif exit_code == 1:

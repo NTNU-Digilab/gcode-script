@@ -788,8 +788,8 @@ def gcode_curves_to_lines(obj):
     '''
 
     # TODO: Tweak these for optimum results
-    segment_min_length = Decimal('0.1')
-    segment_max_length = Decimal('5.5')
+    segment_min_length = Decimal('0.15')
+    segment_max_length = Decimal('3.0')
     scan_resolution = 0.005
 
     gcode = ''

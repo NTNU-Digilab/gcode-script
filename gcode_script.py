@@ -1,13 +1,14 @@
 # coding: utf8
 
 '''
+
     @date:           27.06.2017
     @author:         Andreas Weibye
     @organisation:   Norwegian University of Science and Technology
     @copyright:      MIT License
-    @version:        1.9-beta.2
+    @version:        2.0.0
 
-    @summary: Converts Rhino curves into gcode for the CO2 plasma laser.
+    @summary: Converts Rhino curves into G-code for the CO2 plasma laser.
               This script aims to utilise the laser-cutter's full range of
               motion using G00, G01, G02 and G03 moves.
 
@@ -37,7 +38,6 @@ import datetime
 from decimal import Decimal, Context, getcontext, ROUND_HALF_DOWN
 import math
 import os
-import time
 import urllib
 import re
 
@@ -54,7 +54,7 @@ _LAYER_NAME_REPLACEMENTS = {' ': '_',
                             '-': '_',
                             '\\': '_',
                             '|': '_',
-                            '$': '_'} # Dictonary to replace unrecognizable characters in layer names
+                            '$': '_'} # Dictionary to replace unrecognisable characters in layer names
 
 _CURVE_TO_LINE_SEGMENT_LENGTH = 0.7
 _G00_SPEED = 45 # The speed of slew movements
@@ -63,7 +63,7 @@ _ESTIMATE_MODIFIER = 1 # Optional factor to multiply speed estimate with to comp
 
 # URL = 'http://www.ntnu.no/ab/digilab/Web/laser3.json' # Server containing acryllic material settings
 URL = 'http://www.ntnu.no/ab/digilab/Web/laser.json' # Server containing regular material settings
-SCRIPT_VERSION = 1.91
+SCRIPT_VERSION = 2.00
 
 WORLD_X_VECTOR = rs.VectorCreate(([1.0, 0.0, 0.0]), ([0.0, 0.0, 0.0]))
 WORLD_XY_PLANE = rs.WorldXYPlane()
@@ -86,7 +86,7 @@ class CurveObject:
         area (float): Area of object if curve is closed
         start_point (array): Start point of curve
         end_point (array): End point of curve
-        center_point (array): Center point of curve if closed
+        center_point (array): Centre point of curve if closed
         bounding_box (list): Extremes of the curves bounding box
                                 [min_x, max_x, min_y, max_y]
     Returns:
@@ -262,7 +262,7 @@ def get_layer_name(layer_name):
                 print('Found %s layer to be used: ' % layer_name_present_participle + str(layer))
                 return layer
             # Rhino is unable to have list items containing whitespaces or special characters as a selectable
-            # This code replaces characters in the central dictionary
+            # This code replaces characters in the string from the central dictionary
             replace = dict((re.escape(k), v) for k, v in _LAYER_NAME_REPLACEMENTS.iteritems())
             pattern = re.compile("|".join(replace.keys()))
             fixed_layer = pattern.sub(lambda m: replace[re.escape(m.group(0))], layer)
@@ -604,7 +604,7 @@ def sort_depth_first(complete_graph, current_vertex, discovered_list):
     discovered_list.append(current_vertex)
 
     #Find children of current vertex
-    children = findChildrenObjects(current_vertex, complete_graph)
+    children = find_children_objects(current_vertex, complete_graph)
 
     #If children not already discovered, call function recursively
     if children:
@@ -613,7 +613,7 @@ def sort_depth_first(complete_graph, current_vertex, discovered_list):
                 sort_depth_first(complete_graph, child, discovered_list)
 
 
-def findChildrenObjects(parent, candidateList):
+def find_children_objects(parent, candidateList):
     '''
     Returning list of children of parent object from list of candidates.
 
@@ -776,7 +776,7 @@ def arc_calc(obj):
     return gcode_direction, x_offset, y_offset
 
 
-def curve_calc_to_lines(obj):
+def gcode_curves_to_lines(obj):
     '''
     Divides a curve into line segments and outputs gcode.
     This due to the inability and complexity of representing
@@ -787,6 +787,7 @@ def curve_calc_to_lines(obj):
         gcode (string): Resulting gcode output
     '''
 
+    # TODO: Tweak these for optimum results
     segment_min_length = Decimal('0.1')
     segment_max_length = Decimal('5.5')
     scan_resolution = 0.005
@@ -804,77 +805,227 @@ def curve_calc_to_lines(obj):
     curve_curvature_min = None
     curve_curvature_max = None
 
+    # Getting upper and lower bounds for curvature throughout the curve
     for i in range (0, curve_divisions):
+
         curve_parameter = curve_domain[0] + (((curve_domain[1] - curve_domain[0]) / curve_divisions) * i)
-        curve_curvature = rs.CurveCurvature(obj.guid, curve_parameter)[3]
-        if curve_curvature > curve_curvature_max or curve_curvature_max == None:
-            curve_curvature_max = curve_curvature
-        if curve_curvature < curve_curvature_min or curve_curvature_min == None:
-            curve_curvature_min = curve_curvature
+        curve_curvature = rs.CurveCurvature(obj.guid, curve_parameter)
 
-    next_parameter = curve_domain[0]
-    current_point = obj.start_point
+        if curve_curvature is not None:
+            curve_curvature = curve_curvature[3] # Setting curvature to curvature magnitude
+            if curve_curvature > curve_curvature_max or curve_curvature_max == None:
+                curve_curvature_max = curve_curvature
+            if curve_curvature < curve_curvature_min or curve_curvature_min == None:
+                curve_curvature_min = curve_curvature
+        else:
+            curve_curvature_min = 0
+            curve_curvature_max = 0
 
-    # Parameters for a 
-    A = -1.97142
-    B = 2.9585
-    C = 0.0129348
-    D = 0
+    #If there are no curvature, curve is straight line, add last point and complete
+    if curve_curvature_min == 0 and curve_curvature_max == 0:
+        gcode += gcode_process_lines(obj, polylines=True, skip_G00=True)
+    else:
+        next_parameter = curve_domain[0]
+        current_point = obj.start_point
 
-    point_list = []
+        # Parameters for a cubic polynomial
+        A = -1.97142
+        B = 2.9585
+        C = 0.0129348
+        D = 0
 
-    print('Steps: ' + str((curve_domain[1] - curve_domain[0]) / scan_resolution))
-    while next_parameter < curve_domain[1]:
+        point_list = []
 
-        length = 0
+        while next_parameter < curve_domain[1]:
 
-        curve_curvature = rs.CurveCurvature(obj.guid, next_parameter)[3]
-        curvature_normalized = (curve_curvature - curve_curvature_min) / (curve_curvature_max - curve_curvature_min)
-        curvature_normalized_cubified = Decimal((A * math.pow(curvature_normalized, 3)
-                                                 + B * math.pow(curvature_normalized, 2)
-                                                 + C * curvature_normalized
-                                                 + D))
-        #=======================================================================
-        # Linear interpolation
-        # value = (C * A) + ((1-C) * B) // convex combination
-        # When C equals 0 value equals B.
-        # When C equals 1 value equals A.
-        # When C equals .5 value equals the average of A and B.
-        #=======================================================================
-        segment_length = Decimal((curvature_normalized_cubified * segment_max_length) 
-                                 + ((1 - curvature_normalized_cubified) * segment_min_length)).quantize(ROUNDING)
+            length = 0
 
-        while length < segment_length:
-            next_parameter += scan_resolution
-            return_point = rs.EvaluateCurve(obj.guid, next_parameter)
-            length = rs.VectorLength(rs.VectorCreate(return_point, current_point))
+            # Getting magnitude of curvature
+            curve_curvature = rs.CurveCurvature(obj.guid, next_parameter)[3]
+            # Normalising curvature to a value between 0 and 1
+            curvature_normalised = (curve_curvature - curve_curvature_min) / (curve_curvature_max - curve_curvature_min)
+            # Running normalised value through cubic polynomial function to create a
+            # ease-in-ease-out transition between long and short segments.
+            curvature_normalised_cubified = Decimal((A * math.pow(curvature_normalised, 3)
+                                                     + B * math.pow(curvature_normalised, 2)
+                                                     + C * curvature_normalised
+                                                     + D))
+            #=======================================================================
+            # Linear interpolation
+            # value = (C * A) + ((1-C) * B) // convex combination
+            # When C equals 0 value equals B.
+            # When C equals 1 value equals A.
+            # When C equals .5 value equals the average of A and B.
+            #=======================================================================
+            segment_length = Decimal((curvature_normalised_cubified * segment_max_length) 
+                                     + ((1 - curvature_normalised_cubified) * segment_min_length)).quantize(ROUNDING)
 
-        if next_parameter > curve_domain[1]:
-            break
+            while length < segment_length:
+                next_parameter += scan_resolution
+                return_point = rs.EvaluateCurve(obj.guid, next_parameter)
+                length = rs.VectorLength(rs.VectorCreate(return_point, current_point))
 
-        elif next_parameter <= curve_domain[1] and length >= segment_length:
-            point_list.append(current_point)
-            current_point = return_point
+            if next_parameter > curve_domain[1]:
+                # End of curve_domain has been reached, exit loop
+                break
 
-    if len(point_list):
-        for point in point_list:
-            if (Decimal(point[0]).quantize(ROUNDING) == Decimal(obj.start_point[0]).quantize(ROUNDING) and
-                Decimal(point[1]).quantize(ROUNDING) == Decimal(obj.start_point[1]).quantize(ROUNDING)):
-                # Make sure we don't add the first point twice
-                pass
-            else:
-                gcode += ('G01'
-                      + ' X' + str(Decimal(point[0]).quantize(ROUNDING))
-                      + ' Y' + str(Decimal(point[1]).quantize(ROUNDING))
-                      + '\n')
-        # Add the last point of the curve to make sure it's a complete cut
-        gcode += ('G01'
-              + ' X' + str(Decimal(obj.end_point[0]).quantize(ROUNDING))
-              + ' Y' + str(Decimal(obj.end_point[1]).quantize(ROUNDING))
-              + '\n')
+            elif next_parameter <= curve_domain[1] and length >= segment_length:
+                point_list.append(current_point)
+                current_point = return_point
+
+        if len(point_list):
+            for point in point_list:
+                if (Decimal(point[0]).quantize(ROUNDING) == Decimal(obj.start_point[0]).quantize(ROUNDING) and
+                    Decimal(point[1]).quantize(ROUNDING) == Decimal(obj.start_point[1]).quantize(ROUNDING)):
+                    # Make sure we don't add the first point twice
+                    pass
+                else:
+                    gcode += ('G01'
+                          + ' X' + str(Decimal(point[0]).quantize(ROUNDING))
+                          + ' Y' + str(Decimal(point[1]).quantize(ROUNDING))
+                          + '\n')
+            # Add the last point of the curve to make sure it's a complete cut
+            gcode += ('G01'
+                  + ' X' + str(Decimal(obj.end_point[0]).quantize(ROUNDING))
+                  + ' Y' + str(Decimal(obj.end_point[1]).quantize(ROUNDING))
+                  + '\n')
 
     gcode += ('M22\n')
 
+    return gcode
+
+
+def gcode_process_lines(curve_object, polylines=False, skip_G00=False):
+
+    gcode = ''
+
+    if skip_G00 == False:
+        gcode += ('\n' + 'G00'
+                  + ' X' + str(Decimal(curve_object.start_point[0]).quantize(ROUNDING))
+                  + ' Y' + str(Decimal(curve_object.start_point[1]).quantize(ROUNDING))
+                  + '\nM12\n')
+
+    if polylines == True:
+        sub_curves = rs.ExplodeCurves(curve_object.guid)
+
+        for sub in sub_curves:
+            gcode += ('G01'
+                      + ' X' + str(Decimal(rs.CurveEndPoint(sub)[0]).quantize(ROUNDING))
+                      + ' Y' + str(Decimal(rs.CurveEndPoint(sub)[1]).quantize(ROUNDING))
+                      + '\n')
+
+        # Delete exploded segments to avoid duplicates
+        if not rs.DeleteObject(sub):
+            print('Unable to delete exploded curve segment')
+
+    elif polylines == False:
+        gcode += ('G01'
+                  + ' X' + str(Decimal(curve_object.end_point[0]).quantize(ROUNDING))
+                  + ' Y' + str(Decimal(curve_object.end_point[1]).quantize(ROUNDING))
+                  + '\n')
+
+    gcode += ('M22\n')
+
+    return gcode
+
+
+def gcode_process_curves(curve_object, polycurves=False):
+    gcode = ''
+
+    gcode += ('\n' + 'G00'
+              + ' X' + str(Decimal(curve_object.start_point[0]).quantize(ROUNDING))
+              + ' Y' + str(Decimal(curve_object.start_point[1]).quantize(ROUNDING))
+              + '\nM12\n')
+
+    if polycurves == True:
+        sub_curves = rs.ExplodeCurves(curve_object.guid)
+
+        for sub in sub_curves:
+            if rs.IsArc(sub):
+                gcode_direction, x_offset, y_offset = arc_calc(sub)
+
+                gcode += str(gcode_direction
+                             + ' X' + str(Decimal(rs.CurveEndPoint(sub)[0]).quantize(ROUNDING))
+                             + ' Y' + str(Decimal(rs.CurveEndPoint(sub)[1]).quantize(ROUNDING))
+                             + ' I' + str(Decimal(x_offset).quantize(ROUNDING))
+                             + ' J' + str(Decimal(y_offset).quantize(ROUNDING))
+                             + '\n')
+            elif rs.IsLine(sub):
+                gcode += ('G01'
+                      + ' X' + str(Decimal(rs.CurveEndPoint(sub)[0]).quantize(ROUNDING))
+                      + ' Y' + str(Decimal(rs.CurveEndPoint(sub)[1]).quantize(ROUNDING))
+                      + '\n')
+            else:
+                # curve is NURBS
+                curve_divisions= int(rs.CurveLength(sub))
+                curve_domain = rs.CurveDomain(sub)
+
+                for i in range (0, curve_divisions):
+                    curve_parameter = curve_domain[0] + (((curve_domain[1] - curve_domain[0]) / curve_divisions) * i)
+                    curve_point = rs.EvaluateCurve(curve_object.guid, curve_parameter)
+                    if curve_point is not None:
+                        gcode += ('G01' 
+                                  + ' X' + str(Decimal(curve_point[0]).quantize(ROUNDING))
+                                  + ' Y' + str(Decimal(curve_point[1]).quantize(ROUNDING))
+                                  + '\n')
+
+            if not rs.DeleteObject(sub):
+                print('Unable to delete exploded curve segment')
+    else:
+        if rs.IsArc(curve_object.guid):
+            gcode_direction, x_offset, y_offset = arc_calc(curve_object.guid)
+
+            # G02/G03 [x][y][z]|[i][j][k]
+            gcode += str(gcode_direction
+                        + ' X' + str(Decimal(curve_object.end_point[0]).quantize(ROUNDING))
+                        + ' Y' + str(Decimal(curve_object.end_point[1]).quantize(ROUNDING))
+                        + ' I' + str(Decimal(x_offset).quantize(ROUNDING))
+                        + ' J' + str(Decimal(y_offset).quantize(ROUNDING))
+                        + '\n')
+
+        elif rs.IsCircle(curve_object.guid):
+            #===================================================================
+            # WARNING: 
+            # Currently struggling with floating point errors.
+            # If start_point + offset - center_point NOT EQUAL 0:
+            #     Both GO2 and G03 will fail
+            # To work around this, the function will divide the circle in two arcs
+            # and work from there. 
+            #===================================================================
+
+            curve_domain = rs.CurveDomain(curve_object.guid)
+            #Split circle in two arcs
+            sub_curves = rs.SplitCurve(curve_object.guid, curve_domain[1] / 2, delete_input=False)
+
+            for sub in sub_curves:
+                gcode_direction, x_offset, y_offset = arc_calc(sub)
+
+                # G02/G03 [x][y][z]|[i][j][k]
+                gcode += str(gcode_direction
+                             + ' X' + str(Decimal(rs.CurveEndPoint(sub)[0]).quantize(ROUNDING))
+                             + ' Y' + str(Decimal(rs.CurveEndPoint(sub)[1]).quantize(ROUNDING))
+                             + ' I' + str(Decimal(x_offset).quantize(ROUNDING))
+                             + ' J' + str(Decimal(y_offset).quantize(ROUNDING))
+                             + '\n')
+
+                last_entry = (rs.CurveEndPoint(sub)[0], rs.CurveEndPoint(sub)[1])
+
+                if not rs.DeleteObject(sub):
+                    print('Unable to delete split curve segment')
+
+            # If there are any rounding errors and the end point of the last arc
+            # is not the same as the start point of the first arc, create a line.
+            if (((Decimal(last_entry[0]).quantize(ROUNDING))
+                != Decimal(curve_object.start_point[0]).quantize(ROUNDING)) or
+                ((Decimal(last_entry[1]).quantize(ROUNDING))
+                != Decimal(curve_object.start_point[1]).quantize(ROUNDING))):
+
+                gcode += ('\n' + 'G01'
+                          + ' X' + str(Decimal(curve_object.start_point[0]).quantize(ROUNDING))
+                          + ' Y' + str(Decimal(curve_object.start_point[1]).quantize(ROUNDING))
+                          )
+
+    gcode += ('M22\n')
 
     return gcode
 
@@ -919,56 +1070,15 @@ def gcode_from_objects(object_list):
 
         if obj.curve_type == 'ellipse':
 
-            gcode += curve_calc_to_lines(obj)
+            gcode += gcode_curves_to_lines(obj)
 
             processed_curve += 1
             active_length += rs.CurveLength(obj.guid)
 
 
         elif obj.curve_type == 'circle':
-            #===================================================================
-            # WARNING: 
-            # Currently struggling with floating point errors.
-            # If start_point + offset - center_point NOT EQUAL 0:
-            #     Both GO2 and G03 will fail
-            # To work around this, the function will divide the circle in two arcs
-            # and work from there. 
-            #===================================================================
 
-            curve_domain = rs.CurveDomain(obj.guid)
-            #Split circle in two arcs
-            sub_curves = rs.SplitCurve(obj.guid, curve_domain[1] / 2, delete_input=False)
-            gcode += ('\n' + 'G00'
-                      + ' X' + str(Decimal(obj.start_point[0]).quantize(ROUNDING))
-                      + ' Y' + str(Decimal(obj.start_point[1]).quantize(ROUNDING))
-                      + '\nM12\n')
-            for sub in sub_curves:
-                gcode_direction, x_offset, y_offset = arc_calc(sub)
-                # G02/G03 [x][y][z]|[i][j][k]
-                gcode += str(gcode_direction
-                             + ' X' + str(Decimal(rs.CurveEndPoint(sub)[0]).quantize(ROUNDING))
-                             + ' Y' + str(Decimal(rs.CurveEndPoint(sub)[1]).quantize(ROUNDING))
-                             + ' I' + str(Decimal(x_offset).quantize(ROUNDING))
-                             + ' J' + str(Decimal(y_offset).quantize(ROUNDING))
-                             + '\n')
-                last_entry = (rs.CurveEndPoint(sub)[0], rs.CurveEndPoint(sub)[1])
-
-                if not rs.DeleteObject(sub):
-                    print('Unable to delete split curve segment')
-
-            # If there are any rounding errors and the end point of the last arc
-            # is not the same as the start point of the first arc, create a line.
-            if (((Decimal(last_entry[0]).quantize(ROUNDING))
-                != Decimal(obj.start_point[0]).quantize(ROUNDING)) or
-                ((Decimal(last_entry[1]).quantize(ROUNDING))
-                != Decimal(obj.start_point[1]).quantize(ROUNDING))):
-
-                gcode += ('\n' + 'G01'
-                          + ' X' + str(Decimal(obj.start_point[0]).quantize(ROUNDING))
-                          + ' Y' + str(Decimal(obj.start_point[1]).quantize(ROUNDING))
-                          )
-
-            gcode += ('M22\n')
+            gcode += gcode_process_curves(obj, polycurves=False)
 
             # Add statistics
             processed_curve += 1
@@ -976,124 +1086,46 @@ def gcode_from_objects(object_list):
 
         if obj.curve_type == 'arc':
 
-            gcode_direction, x_offset, y_offset = arc_calc(obj.guid)
-
-            x_coord = str(Decimal(obj.end_point[0]).quantize(ROUNDING))
-            y_coord = str(Decimal(obj.end_point[1]).quantize(ROUNDING))
-
-            gcode += ('\n' + 'G00'
-                      + ' X' + str(Decimal(obj.start_point[0]).quantize(ROUNDING))
-                      + ' Y' + str(Decimal(obj.start_point[1]).quantize(ROUNDING))
-                      + '\nM12\n')
-
-            # G02/G03 [x][y][z]|[i][j][k]
-            gcode += str(gcode_direction
-                        + ' X' + str(x_coord)
-                        + ' Y' + str(y_coord)
-                        + ' I' + str(Decimal(x_offset).quantize(ROUNDING))
-                        + ' J' + str(Decimal(y_offset).quantize(ROUNDING))
-                        + '\n')
-
-            gcode += ('M22\n')
+            gcode += gcode_process_curves(obj, polycurves=False)
 
             # Add statistics
             processed_curve += 1
             active_length += rs.CurveLength(obj.guid)
 
         elif obj.curve_type == 'curve':
+
             #Object is NURBS or interpolated curve
+            gcode += gcode_curves_to_lines(obj)
 
-            gcode += curve_calc_to_lines(obj)
-
+            # Add statistics
             processed_curve += 1
             active_length += rs.CurveLength(obj.guid)
 
         elif obj.curve_type == 'polycurve':
 
-            sub_curves = rs.ExplodeCurves(obj.guid)
+            gcode += gcode_process_curves(obj, polycurves=True)
 
-            gcode += ('\n' + 'G00'
-                      + ' X' + str(Decimal(obj.start_point[0]).quantize(ROUNDING))
-                      + ' Y' + str(Decimal(obj.start_point[1]).quantize(ROUNDING))
-                      + '\nM12\n')
-
-            for sub in sub_curves:
-                if rs.IsArc(sub):
-                    gcode_direction, x_offset, y_offset = arc_calc(sub)
-
-                    gcode += str(gcode_direction
-                                 + ' X' + str(Decimal(rs.CurveEndPoint(sub)[0]).quantize(ROUNDING))
-                                 + ' Y' + str(Decimal(rs.CurveEndPoint(sub)[1]).quantize(ROUNDING))
-                                 + ' I' + str(Decimal(x_offset).quantize(ROUNDING))
-                                 + ' J' + str(Decimal(y_offset).quantize(ROUNDING))
-                                 + '\n')
-                elif rs.IsLine(sub):
-                    gcode += ('G01'
-                          + ' X' + str(Decimal(rs.CurveEndPoint(sub)[0]).quantize(ROUNDING))
-                          + ' Y' + str(Decimal(rs.CurveEndPoint(sub)[1]).quantize(ROUNDING))
-                          + '\n')
-                else:
-                    curve_divisions= int(rs.CurveLength(sub))
-                    curve_domain = rs.CurveDomain(sub)
-
-                    for i in range (0, curve_divisions):
-                        curve_parameter = curve_domain[0] + (((curve_domain[1] - curve_domain[0]) / curve_divisions) * i)
-                        curve_point = rs.EvaluateCurve(obj.guid, curve_parameter)
-                        if curve_point is not None:
-                            gcode += ('G01' 
-                                      + ' X' + str(Decimal(curve_point[0]).quantize(ROUNDING))
-                                      + ' Y' + str(Decimal(curve_point[1]).quantize(ROUNDING))
-                                      + '\n')
-
-                if not rs.DeleteObject(sub):
-                    print('Unable to delete exploded curve segment')
-
-            gcode += ('M22\n')
-
+            # Add statistics
             processed_polycurve += 1
             active_length += rs.CurveLength(obj.guid)
 
         elif obj.curve_type == 'polyline':
 
-            sub_curves = rs.ExplodeCurves(obj.guid)
+            gcode += gcode_process_lines(obj, polylines=True)
 
-            gcode += ('\n' + 'G00'
-                      + ' X' + str(Decimal(obj.start_point[0]).quantize(ROUNDING))
-                      + ' Y' + str(Decimal(obj.start_point[1]).quantize(ROUNDING))
-                      + '\nM12\n')
-
-            for sub in sub_curves:
-                gcode += ('G01'
-                          + ' X' + str(Decimal(rs.CurveEndPoint(sub)[0]).quantize(ROUNDING))
-                          + ' Y' + str(Decimal(rs.CurveEndPoint(sub)[1]).quantize(ROUNDING))
-                          + '\n')
-
-                # Delete exploded segments to avoid duplicates
-                if not rs.DeleteObject(sub):
-                    print('Unable to delete exploded curve segment')
-
-            gcode += ('M22\n')
-
+            # Add statistics
             processed_polyline += 1
             active_length += rs.CurveLength(obj.guid)
 
         elif obj.curve_type == 'line':
 
-            gcode += ('\n' + 'G00'
-                      + ' X' + str(Decimal(obj.start_point[0]).quantize(ROUNDING))
-                      + ' Y' + str(Decimal(obj.start_point[1]).quantize(ROUNDING))
-                      + '\nM12\n')
+            gcode += gcode_process_lines(obj, polylines=False)
 
-            gcode += ('G01'
-                     + ' X' + str(Decimal(obj.end_point[0]).quantize(ROUNDING))
-                     + ' Y' + str(Decimal(obj.end_point[1]).quantize(ROUNDING))
-                     + '\n')
-
-            gcode += ('M22\n')
-
+            # Add statistics
             processed_line += 1
             active_length += rs.CurveLength(obj.guid)
-        
+
+        # Statistics and movement
         passive_move_vector = rs.VectorCreate(obj.start_point, previous_position)
         passive_length += rs.VectorLength(passive_move_vector)
         previous_position = obj.end_point
@@ -1104,24 +1136,17 @@ def gcode_from_objects(object_list):
 def run_script():
     '''
     Main program function
-    TODO: Fix all documentation segments
+    Parameters:
+        None
+    Returns:
+        exit_code (int) : Int referencing what manner the script exited.
+        exit_objects_to_be_selected(list): What objects need to be selected on exit.
     '''
-
-    # start_time = time.clock()
-
-    #===========================================================================
-    # rs.StatusBarProgressMeterShow('Running Gcode Script',
-    #                               0,
-    #                               100,
-    #                               embed_label=True,
-    #                               show_percent=True
-    #                               )
-    #===========================================================================
 
     print('\n----\n  G-code generator for MultiCAM CO2 laser cutter. \n'
           + '  Version: ' + str(SCRIPT_VERSION)
           + ' by Andreas Weibye(AB), NTNU Trondheim - www.ntnu.edu \n'
-          + '  Released under Creative Commons - CC BY-SA 4.0 \n----\n'
+          + '  Released under MIT Licence \n----\n'
          )
 
     cut_out_of_bounds = 0
@@ -1136,15 +1161,11 @@ def run_script():
     server_data = get_from_url(URL)
 
     if server_data is False:
-        return 1, None# Returned with an error but we have notified about it
+        return 1, None # Returned with an error but we have notified about it
 
     if server_data['Offline'] == 1:
         rs.MessageBox(server_data['OfflineMessage'], 0, 'Error: Server is offline')
         return 1, None
-
-    #===========================================================================
-    # rs.StatusBarProgressMeterUpdate(1, absolute=True)
-    #===========================================================================
 
     # Setting the outer bounds of the working area
     global BOUNDS_MAX_X
@@ -1163,10 +1184,6 @@ def run_script():
         rs.MessageBox(plugin_message, 0, 'Error: Script out of date')
         return 1, None
 
-    #===========================================================================
-    # rs.StatusBarProgressMeterUpdate(2, absolute=True)
-    #===========================================================================
-
     # Checking the document unit system and terminates if the used does not approve auto-scaling
     if not approve_unit_system():
         rs.MessageBox(
@@ -1175,17 +1192,9 @@ def run_script():
             0, 'Error: Incompatible unit system')
         return 1, None
 
-    #===========================================================================
-    # rs.StatusBarProgressMeterUpdate(3, absolute=True)
-    #===========================================================================
-
     # Getting cutting and engraving layer
     layer_name_engrave = get_layer_name(_ENGRAVING_LAYER_DEFAULT_NAME)
     layer_name_cut = get_layer_name(_CUTTING_LAYER_DEFAULT_NAME)
-
-    #===========================================================================
-    # rs.StatusBarProgressMeterUpdate(10, absolute=True)
-    #===========================================================================
 
     # Terminate if no layer has been selected
     if layer_name_cut == None and layer_name_engrave == None :
@@ -1290,7 +1299,6 @@ def run_script():
     #===========================================================================
     # Get Gcode and statistics
     #===========================================================================
-    algo_start_time = time.clock()
 
     if objects_engrave != None:
         # Getting gcode_engrave and statistics
@@ -1315,8 +1323,6 @@ def run_script():
         lines_cut = None
         length_cut_active = 0
         length_cut_passive = 0
-
-    print('Calctime: ' + str(time.clock() - algo_start_time))
 
     duration_engrave = (length_engraved_active / int(material_data['EngravingSpeed'])) + (length_engraved_passive / _G00_SPEED) 
     duration_cut = (length_cut_active / int(material_data['CuttingSpeed'])) + (length_cut_passive / _G00_SPEED)
@@ -1386,9 +1392,14 @@ def run_script():
                       + 'G01 F' + str(material_data['CuttingSpeed']) + '\n'
                       + str(gcode_cut) + '\n')
 
+    if 'G75' in server_data['Start-up']:
+        fixed_server_data_start = str(server_data['Start-up'].replace('G75', 'G74'))
+    else:
+        fixed_server_data_start = str(server_data['Start-up'])
+
     gcode_start = ('(\n' + summary + '\n)\n' + '\n'
                    + '(Startup commands) \n'
-                   + str(server_data['Start-up']) + '\n'
+                   + fixed_server_data_start + '\n'
                    + 'G00 COriginalFilename-' + str(rs.DocumentName()) + '\n'
                    + 'G00 CLaserProfile-' + str(material_data['MaterialName']) + '\n'
                    + 'G00 CTimeEstimate-' + str(datetime.timedelta(seconds=int(duration_total)))
@@ -1396,18 +1407,16 @@ def run_script():
 
     gcode_end = ('(Shutdown commands) \n' + str(server_data['End']))
 
-    # Concatenating final Gcode
+    # Concatenating final G-code
     gcode_final = gcode_start + gcode_mid + gcode_end
 
     # Add G-code to Notes in Rhino Document
     rs.Notes(newnotes=gcode_final)
 
-    # print('Script runtime: ' + str(round(time.clock() - start_time, 6)))
-
     #===========================================================================
     # Saving file & showing summary
     #===========================================================================
-    save_path = rs.SaveFileName('Save Gcode file as (material profile and ending automatically added)')
+    save_path = rs.SaveFileName('Save G-code file as (material profile and ending automatically added)')
     if save_path is not None:
         save_file = save_path + '_' + str(material_data['MaterialName']) + '.nc'
     else:
@@ -1433,6 +1442,7 @@ def run_script():
     rs.MessageBox(summary, 0, title='File summary')
 
     return 0, None
+
 
 #===============================================================================
 # Main programloop

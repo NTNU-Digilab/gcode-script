@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-## [v1.9-beta.1] - 2017-08-23
+## [v2.0.0] - 2017-08-23
 ### Added
 **Project:**
 - Project now available on GitHub for ease of access to the latest file as well as having the ability to contribute for anyone who may want to.
@@ -14,26 +14,28 @@ All notable changes to this project will be documented in this file.
 - Script will not ask for cut or engrave layer if there is only one layer present in document named the default name of either cut or engrave. It will recognise the one, and not ask for the other.
 
 **Curve processing:**
-- Script now 
-- Script will now check for duplicate geometry and exit if any is found.
-- Script will now check for non-planar geometry and exit if any is found.
-- Script will check if planar curves are in the World XY plane, exit if any is not.
-- Arcs and circles are now calculated to use circular motion cut.
-- Rounding errors in circle-calculation will be made up for using a line at the end of the cut, keeping sure the entire circle is cut.
+- Script will now check for duplicate geometry and give option to exit if any is found.
+- Script will now check for non-planar geometry and  give option to exit if any is found.
+- Script will check if planar curves are in the World XY plane and give option to exit if any is not.
+- Arcs and circles are now calculated to use circular motion cut (G02 / G03).
+- Rounding errors in circle-calculation will be made up for using a line at the end of the cut, making sure the entire circle is cut.
 - Script pauses if objects are skipped or out-of-bounds and prompts user to exit or continue.
 
 **Sorting:**
-- When selecting an acrylic-profile, user will have the option to use an alternative sort, hopefully mitigating over-heating and warping of the material.
+- When selecting an acrylic-profile, user will have the option to use an alternative sort, aiming to mitigate significant over-heating and warping of the material. 
 
 **File system:**
 - Script now checks if final file was successfully created before exiting.
 
+**User interaction:**
+- If script exits because of invalid geometry (non-planar, out of bounds++) program will exit and select the geometry in question.
+
 ### Changed
 **Layers:**
-- Re-wrote function for getting layer name. No longer need for two separate get_layer_name functions
+- Re-wrote function for getting layer name. No longer need for two separate *get\_layer\_name* functions.
 
 **Curve processing:**
-- Ellipses and NURBS are still calculated using multiple lines but has been rewritten to create better curvature.
+- Ellipses and NURBS are still calculated by first reducing them to multiple lines first but has been rewritten to create better curvature.
 - Rewritten code generation for polylines and polycurves to create better cuts.
 
 **Sorting:**

@@ -871,6 +871,8 @@ def gcode_process_curves(curve_object, polycurves=False):
                     # Deleting polyline from document as we don't need it
                     if rs.DeleteObject(converted_curve_guid) != True:
                         print('Could not delete object')
+            if rs.DeleteObject(sub) != True:
+                print('Could not delete object')
 
     else:
         if rs.IsArc(curve_object.guid):

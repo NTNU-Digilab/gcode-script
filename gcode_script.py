@@ -970,8 +970,9 @@ def gcode_from_objects(object_list):
 
     gcode = ''
 
-    percent_max = len(object_list)
-    percent_update = 1 / percent_max * 100
+
+    percent_update = 1 / len(object_list) * 100
+    status_bar = 0
     rs.StatusBarProgressMeterShow('Processing curves', 0, 100, embed_label=False, show_percent=True)
 
     for obj in object_list:
@@ -1058,14 +1059,17 @@ def gcode_from_objects(object_list):
             processed_line += 1
             active_length += rs.CurveLength(obj.guid)
 
-        rs.StatusBarProgressMeterUpdate(percent_update, absolute=False)
+        
 
         # Statistics and movement
         passive_move_vector = rs.VectorCreate(obj.start_point, previous_position)
         passive_length += rs.VectorLength(passive_move_vector)
         previous_position = obj.end_point
 
-    rs.StatusBarProgressMeterUpdate(100, absolute=True)
+        status_bar += percent_update
+        rs.StatusBarProgressMeterUpdate(status_bar, absolute=True)
+
+    # rs.StatusBarProgressMeterUpdate(100, absolute=True)
 
     return gcode, processed_curve, processed_polycurve, processed_polyline, processed_line, active_length, passive_length, unprocessed_curves
 

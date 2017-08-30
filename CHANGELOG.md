@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ## [v2.0.1] - 2017-08-30
+### Added
+**User interaction:**
+- Added a loading-bar during curve-calculation to give user indication on current status of processing.
+
 ### Changed
 **Curve Processing:**
 - Rewrote NURBS and ellipse calculation to be much less resource intensive.

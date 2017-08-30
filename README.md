@@ -24,7 +24,7 @@ This new script is based on script V1.0 written by Asbjorn Steinskog (IDI) and P
 1. Organise your file:
    1. Clean up unnecessary geometry.
    1. Make sure the curves are planar and not outside the maximum allowed working area (X1900mmY1000mm).
-   1. Move cutting and engraving curves into separate layers.
+   1. Move cutting and engraving curves into separate layers. 
       1. The script will automatically look for layers named 'Cut', 'cut', 'Engrave', and 'engrave' and assign them as layers for cutting or engraving.
       1. If these names are not found, the script will ask for a layer to use.
    1. Type 'RunPythonScript' in the Rhino command line and press enter.

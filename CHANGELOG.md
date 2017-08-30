@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [v2.0.1] - 2017-08-30
+### Changed
+**Curve Processing:**
+- Rewrote NURBS and ellipse calculation to be much less resource intensive.
+
+
 ## [v2.0.0] - 2017-08-23
 ### Added
 **Project:**

@@ -789,7 +789,6 @@ def convert_to_lines(curve_guid):
 
     converted_curve = rs.ConvertCurveToPolyline(curve_guid, 2.0, 0.01, False, 0.95, 3.0)
     if converted_curve:
-        print('Successfully converted curve')
         return converted_curve
     else:
         print('Unable to convert curve')
@@ -971,6 +970,10 @@ def gcode_from_objects(object_list):
 
     gcode = ''
 
+    percent_max = len(object_list)
+    percent_update = 1 / percent_max * 100
+    rs.StatusBarProgressMeterShow('Processing curves', 0, 100, embed_label=False, show_percent=True)
+
     for obj in object_list:
 
         if obj.curve_type == 'ellipse':
@@ -1055,10 +1058,14 @@ def gcode_from_objects(object_list):
             processed_line += 1
             active_length += rs.CurveLength(obj.guid)
 
+        rs.StatusBarProgressMeterUpdate(percent_update, absolute=False)
+
         # Statistics and movement
         passive_move_vector = rs.VectorCreate(obj.start_point, previous_position)
         passive_length += rs.VectorLength(passive_move_vector)
         previous_position = obj.end_point
+
+    rs.StatusBarProgressMeterUpdate(100, absolute=True)
 
     return gcode, processed_curve, processed_polycurve, processed_polyline, processed_line, active_length, passive_length, unprocessed_curves
 

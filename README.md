@@ -27,20 +27,20 @@ This new script is based on script V1.0 written by Asbjorn Steinskog (IDI) and P
    1. Move cutting and engraving curves into separate layers. 
       1. The script will automatically look for layers named 'Cut', 'cut', 'Engrave', and 'engrave' and assign them as layers for cutting or engraving.
       1. If these names are not found, the script will ask for a layer to use.
-   1. Type 'RunPythonScript' in the Rhino command line and press enter.
-   1. Navigate to the gcode_script.py you downloaded and select it.
-   1. The script will now run:
-      1. If 'Engrave' or 'engrave' layer is not found you will be asked to choose a layer for engraving.
-      1. If 'Cut' or 'cut' layer is not found, you will be asked to choose a layer for cutting.
-      1. The script will now ask for which material profile to use, choose one.
-      1. The script will now process the curves. Depending on the file this may take some time (2 - 20 seconds).
-      1. After processing, the script will ask you for a location to save the file.
-        1. The script automatically adds the material profile as a suffix to the name so that you know what material you chose.
-      1. A summary of the file will be shown. Please pay special attention to "Skipped objects" and "Skipped out of bounds objects".
-      1. Take note of the "Total estimated time to run this file". This is an approximation on how long this will take to perform by the laser-cutter.
-      1. Transfer the saved G-code file to the laser-cutter's dropbox folder.
-      1. Make sure you have booked a session on the laser-cutter before use.
-      1. Head down to the workshop, start the laser-cutter and run your file.
+1. Type 'RunPythonScript' in the Rhino command line and press enter.
+1. Navigate to the gcode_script.py you downloaded and select it.
+1. The script will now run:
+   1. If 'Engrave' or 'engrave' layer is not found you will be asked to choose a layer for engraving.
+   1. If 'Cut' or 'cut' layer is not found, you will be asked to choose a layer for cutting.
+1. The script will now ask for which material profile to use, choose one.
+1. The script will now process the curves. Depending on the file this may take some time (2 - 20 seconds).
+1. After processing, the script will ask you for a location to save the file.
+   1. The script automatically adds the material profile as a suffix to the name so that you know what material you chose.
+1. A summary of the file will be shown. Please pay special attention to "Skipped objects" and "Skipped out of bounds objects".
+1. Take note of the "Total estimated time to run this file". This is an approximation on how long this will take to perform by the laser-cutter.
+1. Transfer the saved G-code file to the laser-cutter's dropbox folder.
+1. Make sure you have booked a session on the laser-cutter before use.
+1. Head down to the workshop, start the laser-cutter and run your file.
 
 
 ## MultiCam GCodes

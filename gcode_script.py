@@ -534,28 +534,29 @@ def sort_advanced(object_list, material_data=None):
         else:
             curves_open.append(entry)
 
+
+
     # Sort by area, then X, then Y, smallest first
     # Sort on secondary key
-    curves_closed = sorted(
-        curves_closed,
-        key=lambda CurveObject: (CurveObject.start_point[0], CurveObject.start_point[1]),
-        reverse=True
-        )
-
+    curves_closed = sorted(curves_closed,
+                           key=lambda CurveObject: (CurveObject.start_point[0], CurveObject.start_point[1]),
+                           reverse=True
+                           )
+ 
     # Sort on primary key
-    curves_closed = sorted(
-        curves_closed,
-        key=lambda CurveObject: CurveObject.area,
-        reverse=True
-        )
-
+    curves_closed = sorted(curves_closed,
+                           key=lambda CurveObject: CurveObject.area,
+                           reverse=True
+                           )
+        
+    #curves_closed.reverse()
+    
     if alternative_sort == False:
         # Sort open by start_point X and Y, lowest first
-        curves_open = sorted(
-            curves_open,
-            key=lambda CurveObject: (CurveObject.start_point[0], CurveObject.start_point[1]),
-            reverse=True
-            )
+        curves_open = sorted(curves_open,
+                             key=lambda CurveObject: (CurveObject.start_point[0], CurveObject.start_point[1]),
+                             reverse=True
+                             )
 
 
     elif alternative_sort == True:
@@ -590,6 +591,7 @@ def sort_advanced(object_list, material_data=None):
     # Reverse sorted list to get smallest items first
     discovered_complete.reverse()
 
+    # return discovered_complete
     return discovered_complete
 
 
@@ -610,7 +612,12 @@ def sort_depth_first(complete_graph, current_vertex, discovered_list):
 
     #If children not already discovered, call function recursively
     if children:
-        for child in children:
+        children_sorted = sorted(children,
+                                 key=lambda CurveObject: (CurveObject.start_point[0], CurveObject.start_point[1]),
+                                 reverse=False
+                                 )
+
+        for child in children_sorted:
             if child not in discovered_list:
                 sort_depth_first(complete_graph, child, discovered_list)
 
@@ -787,13 +794,12 @@ def convert_to_lines(curve_guid):
         converted_curve(guid): guid of the converted curve object
     '''
 
-    converted_curve = rs.ConvertCurveToPolyline(curve_guid, 2.0, 0.01, False, 0.95, 3.0)
+    converted_curve = rs.ConvertCurveToPolyline(curve_guid, 3.0, 0.01, False, 0.95, 3.0)
     if converted_curve:
         return converted_curve
     else:
         print('Unable to convert curve')
         return False
-
 
 
 def gcode_process_lines(curve_guid, polylines=False, skip_G00=False):
@@ -822,7 +828,7 @@ def gcode_process_lines(curve_guid, polylines=False, skip_G00=False):
     elif polylines == False:
         gcode += ('G01'
                   + ' X' + str(Decimal(rs.CurveEndPoint(curve_guid)[0]).quantize(ROUNDING))
-                  + ' Y' + str(Decimal(rs.CurveEndPoint(curve_guid)[0]).quantize(ROUNDING))
+                  + ' Y' + str(Decimal(rs.CurveEndPoint(curve_guid)[1]).quantize(ROUNDING))
                   + '\n')
 
     gcode += ('M22\n')
@@ -1066,6 +1072,7 @@ def gcode_from_objects(object_list):
         status_bar += percent_update
         rs.StatusBarProgressMeterUpdate(status_bar, absolute=True)
 
+    rs.StatusBarProgressMeterUpdate(100, absolute=True)
 
     return gcode, processed_curve, processed_polycurve, processed_polyline, processed_line, active_length, passive_length, unprocessed_curves
 
@@ -1086,6 +1093,7 @@ def run_script():
           + '  Released under MIT Licence \n----\n'
          )
 
+    # Initialise variables
     cut_out_of_bounds = 0
     cut_skipped_objects = 0
 
@@ -1096,6 +1104,10 @@ def run_script():
     engrave_objects_skipped_list = []
     cut_failed_convert = []
     engrave_failed_convert = []
+
+    # Disabling document screen updating when processing
+    rs.EnableRedraw(False)
+
     # Getting data from server
     server_data = get_from_url(URL)
 
@@ -1422,5 +1434,6 @@ if (__name__ == '__main__'):
         print('Program exit: Error, no notification given')
 
     #Perform cleanup
+    rs.EnableRedraw(True)
     rs.StatusBarProgressMeterHide()
 

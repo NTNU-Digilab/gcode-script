@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [v2.0.1] - 2017-08-31
+## [v2.0.1] - 2017-09-08
 ### Added
 **User interaction:**
 - Added a loading-bar during curve-calculation to give user indication on current status of processing.
@@ -11,6 +11,10 @@ All notable changes to this project will be documented in this file.
 **Curve Processing:**
 - Rewrote NURBS and ellipse calculation to be quicker and use less resources.
 - Disabled unnecessary updating of the screen, allowing for much faster processing times.
+
+### Fixes
+**Bugs:**
+- Fixed bug introduced in 2.0.0 creating incorrect lines. 
 
 
 ## [v2.0.0] - 2017-08-23

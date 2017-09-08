@@ -49,7 +49,7 @@ import rhinoscriptsyntax as rs
 # Script material server
 #===============================================================================
 URL = 'http://www.ntnu.no/ab/digilab/Web/laser.json' # Server containing regular material settings
-# URL = 'http://www.ntnu.no/ab/digilab/Web/laser3.json' # Server containing acrylic material settings
+#URL = 'http://www.ntnu.no/ab/digilab/Web/laser3.json' # Server containing acrylic material settings
 
 
 #===============================================================================
@@ -263,8 +263,8 @@ def get_layer_name(layer_name):
                 layer_found = True
                 print('Found %s layer to be used: ' % layer_name_present_participle + str(layer))
                 return layer
-            # Rhino is unable to have list items containing whitespaces or special characters as a selectable
-            # This code replaces characters in the string from the central dictionary
+            # Rhino is unable to have list items containing whitespaces or special characters as a selectable.
+            # This code replaces special characters in the string from the central dictionary.
             replace = dict((re.escape(k), v) for k, v in _LAYER_NAME_REPLACEMENTS.iteritems())
             pattern = re.compile("|".join(replace.keys()))
             fixed_layer = pattern.sub(lambda m: replace[re.escape(m.group(0))], layer)
@@ -1301,7 +1301,7 @@ def run_script():
     if layer_name_cut:
         summary += ('Selected cutting layer: ' + str(layer_name_cut) + '\n')
 
-    summary += ('Generation date and time: ' + str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M%S')) + '\n'
+    summary += ('Generation date and time: ' + str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')) + '\n'
                 + 'Selected material profile: ' + str(material_data['MaterialName']) + '\n\n')
 
     if gcode_engrave:
@@ -1353,6 +1353,8 @@ def run_script():
                       + 'G01 F' + str(material_data['CuttingSpeed']) + '\n'
                       + str(gcode_cut) + '\n')
 
+    # Checking if server-settings are putting machine in relative circle movement,
+    # if not: set it.
     if 'G75' in server_data['Start-up']:
         fixed_server_data_start = str(server_data['Start-up'].replace('G75', 'G74'))
     else:

@@ -55,7 +55,7 @@ URL = 'http://www.ntnu.no/ab/digilab/Web/laser.json' # Server containing regular
 #===============================================================================
 # GLOBAL VARIABLES
 #===============================================================================
-SCRIPT_VERSION = 2.01
+SCRIPT_VERSION = 2.02
 
 _CUTTING_LAYER_DEFAULT_NAME = 'cut'  # Lower case name to be used for cut_layer
 _ENGRAVING_LAYER_DEFAULT_NAME = 'engrave'  # Lower case name to be used for engrave_layer
@@ -802,28 +802,36 @@ def convert_to_lines(curve_guid):
         return False
 
 
-def gcode_process_lines(curve_guid, polylines=False, skip_G00=False):
+def gcode_process_lines(curve_guid, polylines=False, skip_start=False, skip_end=False):
 
     gcode = ''
 
-    if skip_G00 == False:
+    if skip_start == False:
         gcode += ('\n' + 'G00'
                   + ' X' + str(Decimal(rs.CurveStartPoint(curve_guid)[0]).quantize(ROUNDING))
                   + ' Y' + str(Decimal(rs.CurveStartPoint(curve_guid)[1]).quantize(ROUNDING))
                   + '\nM12\n')
 
     if polylines == True:
+
+        #Attempting exploding polyline
         sub_curves = rs.ExplodeCurves(curve_guid)
 
-        for sub in sub_curves:
+        if sub_curves:
+            for sub in sub_curves:
+                gcode += ('G01'
+                          + ' X' + str(Decimal(rs.CurveEndPoint(sub)[0]).quantize(ROUNDING))
+                          + ' Y' + str(Decimal(rs.CurveEndPoint(sub)[1]).quantize(ROUNDING))
+                          + '\n')
+                # Delete exploded segments to avoid duplicates
+                if not rs.DeleteObject(sub):
+                    print('Unable to delete exploded curve segment')
+        else:
+            #If the polyline is only 1 segment and cannot be exploded
             gcode += ('G01'
-                      + ' X' + str(Decimal(rs.CurveEndPoint(sub)[0]).quantize(ROUNDING))
-                      + ' Y' + str(Decimal(rs.CurveEndPoint(sub)[1]).quantize(ROUNDING))
+                      + ' X' + str(Decimal(rs.CurveEndPoint(curve_guid)[0]).quantize(ROUNDING))
+                      + ' Y' + str(Decimal(rs.CurveEndPoint(curve_guid)[1]).quantize(ROUNDING))
                       + '\n')
-
-            # Delete exploded segments to avoid duplicates
-            if not rs.DeleteObject(sub):
-                print('Unable to delete exploded curve segment')
 
     elif polylines == False:
         gcode += ('G01'
@@ -831,7 +839,8 @@ def gcode_process_lines(curve_guid, polylines=False, skip_G00=False):
                   + ' Y' + str(Decimal(rs.CurveEndPoint(curve_guid)[1]).quantize(ROUNDING))
                   + '\n')
 
-    gcode += ('M22\n')
+    if skip_end == False:
+        gcode += ('M22\n')
 
     return gcode
 
@@ -845,7 +854,9 @@ def gcode_process_curves(curve_object, polycurves=False):
               + '\nM12\n')
 
     if polycurves == True:
+
         sub_curves = rs.ExplodeCurves(curve_object.guid)
+
 
         for sub in sub_curves:
             if rs.IsArc(sub):
@@ -859,6 +870,7 @@ def gcode_process_curves(curve_object, polycurves=False):
                              + '\n')
 
             elif rs.IsLine(sub):
+
                 gcode += ('G01'
                       + ' X' + str(Decimal(rs.CurveEndPoint(sub)[0]).quantize(ROUNDING))
                       + ' Y' + str(Decimal(rs.CurveEndPoint(sub)[1]).quantize(ROUNDING))
@@ -866,12 +878,12 @@ def gcode_process_curves(curve_object, polycurves=False):
 
             else:
                 # Sub segment is NURBS
-                # Converting curve to polyline
+                # Converting complex curve to polyline
                 converted_curve_guid = convert_to_lines(sub)
 
                 if converted_curve_guid:
                     # Getting G-code from polyline
-                    gcode += gcode_process_lines(converted_curve_guid, polylines=True)
+                    gcode += gcode_process_lines(converted_curve_guid, polylines=True, skip_start=True, skip_end=True)
 
                     # Deleting polyline from document as we don't need it
                     if rs.DeleteObject(converted_curve_guid) != True:

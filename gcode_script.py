@@ -55,7 +55,8 @@ URL = 'http://www.ntnu.no/ab/digilab/Web/laser.json' # Server containing regular
 #===============================================================================
 # GLOBAL VARIABLES
 #===============================================================================
-SCRIPT_VERSION = 2.02
+# For processing this need to be an integer
+SCRIPT_VERSION = 2.02 # Current version of X.Y.Z -> int(X.YZ)
 
 _CUTTING_LAYER_DEFAULT_NAME = 'cut'  # Lower case name to be used for cut_layer
 _ENGRAVING_LAYER_DEFAULT_NAME = 'engrave'  # Lower case name to be used for engrave_layer

@@ -1,7 +1,11 @@
 # Changelog
 
-Test change
 All notable changes to this project will be documented in this file.
+
+## [v2.0.2] - 2017-09-13
+### Changed
+**Curve Processing:**
+- Fixed bug causing laser to skip some lines within a polycurve
 
 ## [v2.0.1] - 2017-09-08
 ### Added

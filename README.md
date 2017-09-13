@@ -58,7 +58,6 @@ This project does not use sematic versioning as there is no API.
 Current versioning format follows following logic:
 
     X.Y.Z
-
-X: Increment on major feature additions, or major overhauling
-Y: Increment on minor feature additions
-Z: Increment on fixes and bugs
+    X: Increment on major feature additions, or major overhauling.  
+    Y: Increment on minor feature additions, rewrite or rework.
+    Z: Increment on minor fixes and bugs.  

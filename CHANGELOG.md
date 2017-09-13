@@ -67,5 +67,3 @@ All notable changes to this project will be documented in this file.
 **Statistics:**
 - Reworked time-estimate to also account for laser slew movement between cuts, allowing the estimated time to be near exact the duration of the file.
 
-
-### Removed

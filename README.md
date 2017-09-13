@@ -9,13 +9,6 @@ Ellipses and NURBS/interpolated curves are reduced to lines for the time being d
 This new script is based on script V1.0 written by Asbjorn Steinskog (IDI) and Pasi Aalto (AB)
 
 
-    @date:           27.06.2017
-    @author:         Andreas Weibye
-    @organisation:   Norwegian University of Science and Technology
-    @copyright:      MIT License
-    @version:        2.01
-
-
 ## Usage
 
 1. Download this script and unpack it.
@@ -58,3 +51,14 @@ Additionally there are some G-codes added to the start and end of the file provi
 
 ### Important note
 This script is designed to work with a Chinese-brand C02 laser-cutter/engraver (unable to find exact brand and make) that uses a MultiCam firmware.
+
+##Versioning
+
+This project does not use sematic versioning as there is no API.
+Current versioning format follows following logic:
+
+    X.Y.Z
+
+X: Increment on major feature additions, or major overhauling
+Y: Increment on minor feature additions
+Z: Increment on fixes and bugs

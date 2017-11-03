@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v2.0.3] - 2017-11-03
+### Fixes
+**Curve Processing:**
+- Fixed bug that caused script to fail when attempting to close a curve that was deemed closable, but was in fact not.
+
 ## [v2.0.2] - 2017-09-13
 ### Changed
 **Curve Processing:**

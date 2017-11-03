@@ -418,8 +418,11 @@ def interpret_curves(object_guid):
     objects_skipped_list = []
 
     if object_guid:
+        
 
+            
         for obj in object_guid:
+            
             c_object = None
             curve_closed = None
             curve_type = ''
@@ -452,11 +455,26 @@ def interpret_curves(object_guid):
                     # If not closed, check if it makes sense to close it
                     if rs.IsCurveClosable(obj):
                         # If yes, then close it and assign the new object to the variable
-                        obj = rs.CloseCurve(obj)
-                        curve_closed = True
+                        closed_obj = rs.CloseCurve(obj)
+                        if closed_obj is None:
+                            # The attempt to close the curve failed
+                            
+                            message = rs.MessageBox('Failed to close curve that was deemed closable. This is likely due to overlapping control points or error in the drawing process. Exit and fix object manually?', 4 | 48 | 0, 'ERROR: Unprocessed objects')
+                            if message == 6:
+                                # Yes was clicked
+                                return None, 0, 1, [obj]
+                            elif message == 7:
+                                # No was clicked
+                                # Program continues
+                                pass
+                            curve_closed = False
+                            
+                        else:
+                            curve_closed = True
+                            obj = closed_obj
                     else:
                         curve_closed = False
-
+                
                 # Determine the type of curve
                 if rs.IsCircle(obj):
                     curve_type = 'circle'
@@ -1224,14 +1242,13 @@ def run_script():
         if total_out_of_bounds > 0:
             message_1 = '%o objects was found to be outside of workable area.' % total_out_of_bounds
         if total_skipped_objects > 0:
-            message_2 = '%o objects was skipped for unknown reason.' % total_skipped_objects
+            message_2 = '%o objects was skipped. Previous dialogue may have informed why. If not the reason is unknown. ' % total_skipped_objects
 
         complete_message = message_1 + '\n' + message_2 + '\nExit script and manually fix errors?'
 
         message = rs.MessageBox(complete_message, 4 | 48 | 0, 'ERROR: Unprocessed objects')
         if message == 6:
             # Yes was clicked
-            print('Yes was clicked')
             total_skipped_objects_list = engrave_objects_skipped_list + cut_objects_skipped_list
             print(str(len(total_skipped_objects_list)))
             return 2, total_skipped_objects_list

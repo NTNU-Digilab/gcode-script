@@ -6,7 +6,7 @@
     @author:         Andreas Weibye
     @organisation:   Norwegian University of Science and Technology
     @copyright:      MIT License
-    @version:        2.0.1
+    @version:        2.0.4
 
     @summary: Converts Rhino curves into G-code for the CO2 plasma laser.
               This script aims to utilise the laser-cutter's full range of
@@ -38,7 +38,7 @@ import datetime
 from decimal import Decimal, Context, getcontext, ROUND_HALF_DOWN
 import math
 import os
-import urllib
+import urllib2
 import re
 
 import json as j
@@ -48,15 +48,15 @@ import rhinoscriptsyntax as rs
 #===============================================================================
 # Script material server
 #===============================================================================
-URL = 'http://www.ntnu.no/ab/digilab/Web/laser.json' # Server containing regular material settings
-#URL = 'http://www.ntnu.no/ab/digilab/Web/laser3.json' # Server containing acrylic material settings
+URL = 'https://www.ntnu.no/ab/digilab/Web/laser.json' # Server containing regular material settings
+#URL = 'https://www.ntnu.no/ab/digilab/Web/laser3.json' # Server containing acrylic material settings
 
 
 #===============================================================================
 # GLOBAL VARIABLES
 #===============================================================================
 # For processing this need to be an integer
-SCRIPT_VERSION = 2.02 # Current version of X.Y.Z -> int(X.YZ)
+SCRIPT_VERSION = 2.04 # Current version of X.Y.Z -> int(X.YZ)
 
 _CUTTING_LAYER_DEFAULT_NAME = 'cut'  # Lower case name to be used for cut_layer
 _ENGRAVING_LAYER_DEFAULT_NAME = 'engrave'  # Lower case name to be used for engrave_layer
@@ -120,24 +120,39 @@ def get_from_url(URL):
         False: If unable to get data
     '''
 
-    print('Getting settings from server')
+    request_headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64; rv:40.0) Gecko/20100101 Firefox/40.0",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Connection": "close"
+    }
+    
+    request = urllib2.Request(URL, headers=request_headers)
+
+    print('Getting material profiles from server')
+    local = False
 
     try:
-        json_data = urllib.urlopen(URL)
-    except:
-        rs.MessageBox(
-            'Unable to connect to online settings server.\nYou or the server may be offline.\n'
-            'Please check your internet connection',
-            0 | 48, 'Error: Unable to connect')
-        return False
+        json_data = urllib2.urlopen(request, timeout=4)
+        
+    except urllib2.URLError, e:
+        print('!!! There was an error: %s' % e)
+        print('!!! Unable to connect to material server. Check internet connection. \n!!! Proceeding to use local profiles.')
+        local = True
 
-    try:
-        data = j.load(json_data)
-    except:
-        rs.MessageBox('Connected to server but no data found.', 0 | 48, 'Error: No data found')
-        return False
+    if local == True:
+        try:
+            data = j.load(open('materials.json'))
+        except:
+            rs.MessageBox('Attempted getting material profiles from local file but found nothing. \nMake sure materials.json is in the same folder as gcode_script.py', 0 | 48, 'Error: No data found')
+            return False
+    elif local == False:
+        try:
+            data = j.load(json_data)
+            json_data.close()
+        except:
+            rs.MessageBox('Connected to server but no data found.', 0 | 48, 'Error: No data found')
+            return False
 
-    json_data.close()
     return data
 
 
@@ -150,7 +165,7 @@ def list_materials(server_data, title='Choose material'):
         material_index (int): Returns the material_index of the chosen material
     '''
 
-    print('Generating material list from server')
+    print('Generating material list from profiles')
 
     material_index = 0
     items = []

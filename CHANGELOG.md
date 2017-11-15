@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v2.0.4] - 2017-11-15
+### Fixes
+**Material Profiles**
+- Created a workaround when script is unable to connect to material server. Script will now look for material profiles from a local file in the case of not being able to connect to server. The initial bug is likely caused by firewall issues.
+
 ## [v2.0.3] - 2017-11-03
 ### Fixes
 **Curve Processing:**

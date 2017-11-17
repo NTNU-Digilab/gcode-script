@@ -6,7 +6,7 @@
     @author:         Andreas Weibye
     @organisation:   Norwegian University of Science and Technology
     @copyright:      MIT License
-    @version:        2.0.4
+    @version:        2.0.5
 
     @summary: Converts Rhino curves into G-code for the CO2 plasma laser.
               This script aims to utilise the laser-cutter's full range of
@@ -40,23 +40,102 @@ import math
 import os
 import urllib2
 import re
-
 import json as j
 import rhinoscriptsyntax as rs
+
+
 
 
 #===============================================================================
 # Script material server
 #===============================================================================
-URL = 'https://www.ntnu.no/ab/digilab/Web/laser.json' # Server containing regular material settings
-#URL = 'https://www.ntnu.no/ab/digilab/Web/laser3.json' # Server containing acrylic material settings
+URL = 'http://www.ntnu.no/ab/digilab/Web/laser.json' # Server containing regular material settings
+#URL = 'http://www.ntnu.no/ab/digilab/Web/laser3.json' # Server containing acrylic material settings
 
 
 #===============================================================================
 # GLOBAL VARIABLES
 #===============================================================================
+MATERIAL_PROFILES = {
+    "Name": "Norwegian University of Science and Technology\nFaculty of Architecture and Fine Arts\nLaserServer V1 - 2014-03-21",
+    "UpdateAddress": "NTNU Digilab",
+    "CurrentVersion": 1.0,
+    "RapidSpeed": 240,
+    "Start-up": "M90\nG90\nG71\nG75\nG00 T46",
+    "End": "G98 P147 D6\nM02",
+    "Offline": 0,
+    "OfflineMessage": "The Server is offline due to maintenance",
+    "Max_X": 1900,
+    "Max_Y": 1000,
+    "Materials": [
+        {
+            "MaterialName": "MDF_3mm",
+            "EngravingSpeed": 100,
+            "EngravingPower": 5,
+            "EngravingPulse": 10,
+            "CuttingSpeed": 45,
+            "CuttingPower": 100,
+            "CuttingPulse": 50
+        },
+        {
+            "MaterialName": "Cardboard_1mm",
+            "EngravingSpeed": 100,
+            "EngravingPower": 3,
+            "EngravingPulse": 10,
+            "CuttingSpeed": 100,
+            "CuttingPower": 20,
+            "CuttingPulse": 50
+        },
+        {
+            "MaterialName": "Cardboard_1_5mm",
+            "EngravingSpeed": 100,
+            "EngravingPower": 3,
+            "EngravingPulse": 10,
+            "CuttingSpeed": 100,
+            "CuttingPower": 25,
+            "CuttingPulse": 50
+        },
+        {
+            "MaterialName": "Cardboard_2mm",
+            "EngravingSpeed": 100,
+            "EngravingPower": 3,
+            "EngravingPulse": 10,
+            "CuttingSpeed": 80,
+            "CuttingPower": 30,
+            "CuttingPulse": 50
+        },
+        {
+            "MaterialName": "Cardboard_2_5mm",
+            "EngravingSpeed": 100,
+            "EngravingPower": 3,
+            "EngravingPulse": 10,
+            "CuttingSpeed": 80,
+            "CuttingPower": 30,
+            "CuttingPulse": 50
+        },
+        {
+            "MaterialName": "Cardboard_3mm",
+            "EngravingSpeed": 100,
+            "EngravingPower": 3,
+            "EngravingPulse": 10,
+            "CuttingSpeed": 80,
+            "CuttingPower": 50,
+            "CuttingPulse": 50
+        },
+        {
+            "MaterialName": "Poplar_ply_4mm",
+            "EngravingSpeed": 100,
+            "EngravingPower": 4,
+            "EngravingPulse": 10,
+            "CuttingSpeed": 65,
+            "CuttingPower": 100,
+            "CuttingPulse": 50
+        }
+    ]
+}
+
 # For processing this need to be an integer
-SCRIPT_VERSION = 2.04 # Current version of X.Y.Z -> int(X.YZ)
+SCRIPT_VERSION = 2.05 # Current version of X.Y.Z -> int(X.YZ)
 
 _CUTTING_LAYER_DEFAULT_NAME = 'cut'  # Lower case name to be used for cut_layer
 _ENGRAVING_LAYER_DEFAULT_NAME = 'engrave'  # Lower case name to be used for engrave_layer
@@ -120,11 +199,7 @@ def get_from_url(URL):
         False: If unable to get data
     '''
 
-    request_headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64; rv:40.0) Gecko/20100101 Firefox/40.0",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Connection": "close"
-    }
+    request_headers = { "Accept": "application/json", "Connection": "close" }
     
     request = urllib2.Request(URL, headers=request_headers)
 
@@ -134,7 +209,7 @@ def get_from_url(URL):
     try:
         json_data = urllib2.urlopen(request, timeout=4)
         
-    except urllib2.URLError, e:
+    except urllib2.URLError as e:
         print('!!! There was an error: %s' % e)
         print('!!! Unable to connect to material server. Check internet connection. \n!!! Proceeding to use local profiles.')
         local = True
@@ -1154,14 +1229,23 @@ def run_script():
     # Disabling document screen updating when processing
     rs.EnableRedraw(False)
 
-    # Getting data from server
-    server_data = get_from_url(URL)
+#===============================================================================
+#     # TODO: Re-enable server connection when server-connect problems are solved.
+#     # Getting data from server
+#     server_data = get_from_url(URL)
+# 
+#     if server_data is False:
+#         return 1, None # Returned with an error but we have notified about it
+# 
+#     if server_data['Offline'] == 1:
+#         rs.MessageBox(server_data['OfflineMessage'], 0, 'Error: Server is offline')
+#         return 1, None
+#===============================================================================
 
-    if server_data is False:
-        return 1, None # Returned with an error but we have notified about it
-
-    if server_data['Offline'] == 1:
-        rs.MessageBox(server_data['OfflineMessage'], 0, 'Error: Server is offline')
+    server_data = j.loads(j.dumps(MATERIAL_PROFILES))
+    
+    if server_data is None:
+        rs.MessageBox('Tried loading material profiles from script but failed. Are they not included in script?', 0, 'Error: No data found')
         return 1, None
 
     # Setting the outer bounds of the working area

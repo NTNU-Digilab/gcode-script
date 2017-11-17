@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 ## [v2.0.5] - 2017-11-17
 ### Fixes
 **Material Profiles**
-- Users without admin priviliges on their system recieved connection or fileread errors. Added workaround. 
+- Users without admin privileges on their system received connection or file-read errors. Added workaround. 
 
 
 ## [v2.0.4] - 2017-11-15

@@ -6,7 +6,7 @@
     @author:         Andreas Weibye
     @organisation:   Norwegian University of Science and Technology
     @copyright:      MIT License
-    @version:        2.0.5
+    @version:        2.0.6
 
     @summary: Converts Rhino curves into G-code for the CO2 plasma laser.
               This script aims to utilise the laser-cutter's full range of

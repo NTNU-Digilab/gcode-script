@@ -1,6 +1,16 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+
+## [v2.0.6] - 2017-11-20
+### Changed
+**Material Profiles**
+- Changed the location of the material profiles to a new server.
+
+### Removed
+**Material Profiles**
+- Removed temporary fix introduced in 2.0.5
+
 ## [v2.0.5] - 2017-11-17
 ### Fixes
 **Material Profiles**

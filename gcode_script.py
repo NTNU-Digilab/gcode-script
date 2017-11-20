@@ -49,93 +49,13 @@ import rhinoscriptsyntax as rs
 #===============================================================================
 # Script material server
 #===============================================================================
-URL = 'http://www.ntnu.no/ab/digilab/Web/laser.json' # Server containing regular material settings
-#URL = 'http://www.ntnu.no/ab/digilab/Web/laser3.json' # Server containing acrylic material settings
-
+URL = 'http://www.pasiaalto.com/aalto/laser.json' # Server containing regular material settings
 
 #===============================================================================
 # GLOBAL VARIABLES
 #===============================================================================
-MATERIAL_PROFILES = {
-    "Name": "Norwegian University of Science and Technology\nFaculty of Architecture and Fine Arts\nLaserServer V1 - 2014-03-21",
-    "UpdateAddress": "NTNU Digilab",
-    "CurrentVersion": 1.0,
-    "RapidSpeed": 240,
-    "Start-up": "M90\nG90\nG71\nG75\nG00 T46",
-    "End": "G98 P147 D6\nM02",
-    "Offline": 0,
-    "OfflineMessage": "The Server is offline due to maintenance",
-    "Max_X": 1900,
-    "Max_Y": 1000,
-    "Materials": [
-        {
-            "MaterialName": "MDF_3mm",
-            "EngravingSpeed": 100,
-            "EngravingPower": 5,
-            "EngravingPulse": 10,
-            "CuttingSpeed": 45,
-            "CuttingPower": 100,
-            "CuttingPulse": 50
-        },
-        {
-            "MaterialName": "Cardboard_1mm",
-            "EngravingSpeed": 100,
-            "EngravingPower": 3,
-            "EngravingPulse": 10,
-            "CuttingSpeed": 100,
-            "CuttingPower": 20,
-            "CuttingPulse": 50
-        },
-        {
-            "MaterialName": "Cardboard_1_5mm",
-            "EngravingSpeed": 100,
-            "EngravingPower": 3,
-            "EngravingPulse": 10,
-            "CuttingSpeed": 100,
-            "CuttingPower": 25,
-            "CuttingPulse": 50
-        },
-        {
-            "MaterialName": "Cardboard_2mm",
-            "EngravingSpeed": 100,
-            "EngravingPower": 3,
-            "EngravingPulse": 10,
-            "CuttingSpeed": 80,
-            "CuttingPower": 30,
-            "CuttingPulse": 50
-        },
-        {
-            "MaterialName": "Cardboard_2_5mm",
-            "EngravingSpeed": 100,
-            "EngravingPower": 3,
-            "EngravingPulse": 10,
-            "CuttingSpeed": 80,
-            "CuttingPower": 30,
-            "CuttingPulse": 50
-        },
-        {
-            "MaterialName": "Cardboard_3mm",
-            "EngravingSpeed": 100,
-            "EngravingPower": 3,
-            "EngravingPulse": 10,
-            "CuttingSpeed": 80,
-            "CuttingPower": 50,
-            "CuttingPulse": 50
-        },
-        {
-            "MaterialName": "Poplar_ply_4mm",
-            "EngravingSpeed": 100,
-            "EngravingPower": 4,
-            "EngravingPulse": 10,
-            "CuttingSpeed": 65,
-            "CuttingPower": 100,
-            "CuttingPulse": 50
-        }
-    ]
-}
 
-# For processing this need to be an integer
-SCRIPT_VERSION = 2.05 # Current version of X.Y.Z -> int(X.YZ)
+SCRIPT_VERSION = 2.06 # Current version of X.Y.Z -> int(X.YZ)
 
 _CUTTING_LAYER_DEFAULT_NAME = 'cut'  # Lower case name to be used for cut_layer
 _ENGRAVING_LAYER_DEFAULT_NAME = 'engrave'  # Lower case name to be used for engrave_layer
@@ -204,29 +124,21 @@ def get_from_url(URL):
     request = urllib2.Request(URL, headers=request_headers)
 
     print('Getting material profiles from server')
-    local = False
 
     try:
         json_data = urllib2.urlopen(request, timeout=4)
         
     except urllib2.URLError as e:
-        print('!!! There was an error: %s' % e)
-        print('!!! Unable to connect to material server. Check internet connection. \n!!! Proceeding to use local profiles.')
-        local = True
+        print('Network error: %s' % e)
+        rs.MessageBox('Warning: Unable to connect to material-profile server.\nMake sure you are connected to the internet.', 0 | 48, 'Error: Network error')
+        return False
 
-    if local == True:
-        try:
-            data = j.load(open('materials.json'))
-        except:
-            rs.MessageBox('Attempted getting material profiles from local file but found nothing. \nMake sure materials.json is in the same folder as gcode_script.py', 0 | 48, 'Error: No data found')
-            return False
-    elif local == False:
-        try:
-            data = j.load(json_data)
-            json_data.close()
-        except:
-            rs.MessageBox('Connected to server but no data found.', 0 | 48, 'Error: No data found')
-            return False
+    try:
+        data = j.load(json_data)
+        json_data.close()
+    except:
+        rs.MessageBox('Connected to server but no data found.', 0 | 48, 'Error: No data found')
+        return False
 
     return data
 
@@ -1229,20 +1141,20 @@ def run_script():
     # Disabling document screen updating when processing
     rs.EnableRedraw(False)
 
-#===============================================================================
-#     # TODO: Re-enable server connection when server-connect problems are solved.
-#     # Getting data from server
-#     server_data = get_from_url(URL)
-# 
-#     if server_data is False:
-#         return 1, None # Returned with an error but we have notified about it
-# 
-#     if server_data['Offline'] == 1:
-#         rs.MessageBox(server_data['OfflineMessage'], 0, 'Error: Server is offline')
-#         return 1, None
-#===============================================================================
+    # TODO: Re-enable server connection when server-connect problems are solved.
+    # Getting data from server
+    server_data = get_from_url(URL)
+ 
+    if server_data is False:
+        return 1, None # Returned with an error but we have notified about it
+ 
+    if server_data['Offline'] == 1:
+        rs.MessageBox(server_data['OfflineMessage'], 0, 'Error: Server is offline')
+        return 1, None
 
-    server_data = j.loads(j.dumps(MATERIAL_PROFILES))
+    #===========================================================================
+    # server_data = j.loads(j.dumps(MATERIAL_PROFILES))
+    #===========================================================================
     
     if server_data is None:
         rs.MessageBox('Tried loading material profiles from script but failed. Are they not included in script?', 0, 'Error: No data found')
@@ -1256,9 +1168,9 @@ def run_script():
 
     if float(server_data['CurrentVersion']) > SCRIPT_VERSION:
         plugin_message = (
-            'The laserScript is not up to date. Please download the newest version from '
+            'The gcode-script is not up to date. Please download the newest version from '
             + str(server_data['UpdateAddress']) + '\n\n'
-            + 'Current version:' + str(server_data['CurrentVersion'])
+            + 'Accepted version: ' + str(server_data['CurrentVersion'])
             + '\nYour script version: ' + str(SCRIPT_VERSION)
             + '\n')
 

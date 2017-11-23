@@ -1374,7 +1374,7 @@ def run_script():
     summary += ('Skipped objects: ' + str(total_skipped_objects) + '\n'
                 + 'Skipped out of bounds objects: ' + str(total_out_of_bounds) + '\n\n'
                 + 'Total estimated time to run this file: ' + str(datetime.timedelta(seconds=int(duration_total))) + '\n\n'
-                + 'Script 2.0 by Andreas Weibye (AB)\nNTNU Trondheim - www.ntnu.edu')
+                + 'Script ' +  str(SCRIPT_VERSION) + ' by Andreas Weibye (AB)\nNTNU Trondheim - www.ntnu.edu')
 
     gcode_mid = ''
 
